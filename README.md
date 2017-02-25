@@ -47,6 +47,7 @@ is a conjunction of a series of of more concrete rules or terminals:
 For example:
 
 ```<digit> ::= <0> | <1> | <2> | <3> | <4> | <5> | <6> | <7> | <8> | <9>
+
 <number> ::= <digit> | <digit> <number>```
  
 which means that the number is just a digit or another number with one more digit.
@@ -58,6 +59,7 @@ Lexical production is called "lexem". We will call syntax production rule as jus
 All above can be presented in C++ friendly notation
 
 ```Lexem Digit = Token("0") | "1"  | "2" | "4" | "5" | "6" | "7" | "8" | "9";
+
 LEXEM(Number) = Digit | Digit + Number;```
  
 These both expressions are executable due to this "bnflite.h" source code library
@@ -65,6 +67,7 @@ which supports "Token", "Lexem" and "Rule" classes with overloaded "+" and "|" o
 More practical and faster way is to use simpler form:
 
 ```Token Digit("01234567");
+
 Lexem Number = Iterate(1, Digit);```
   
 Now e.g. `Parser::Analyze(Number, "532")` can be called with success.
@@ -84,9 +87,13 @@ BNF Lite offers to use the following constructions:
 But BNF Lite also supports ABNF-like form:
 
 ```Token DIGIT("0123456789");
+
 Lexem AB_DIGIT = DIGIT(2,3)  /* <2>*<3><element> - any 2 or 3 digit number */
+
 Lexem I_DIGIT = 1*DIGIT;    /* 1*<element> any number  */
+
 Lexem O_DIGIT = *DIGIT;     /* *<element> - any number or nothing */
+
 Lexem N_DIGIT = !DIGIT(2,3)  /* <0>*<1><element> - one digit or nothing */```
 	
 So, you can almost directly transform ABNF specifications to BNF Lite
@@ -97,16 +104,17 @@ To receive intermediate parsing results callback system can be used.
 The first kind of callback can be used as expression element:
 
 ```int MyNumber(const char* nuber_string, size_t length_of_number) //...
+
 Lexem Number = Iterate(1, Digit) + MyNumber;```
 	
 The second kind of callback can be bound to production Rule.
 The user need to define own context type and work with it.
 
-```typedef Interface<use_cntext> Usr;
-Usr DoNothing(std::vector<Usr>& usr) {  return usr[0]; }
-//...
-Rule Foo;
-Bind(Foo, DoNothing);```
+    typedef Interface<use_cntext> Usr;
+    Usr DoNothing(std::vector<Usr>& usr) {  return usr[0]; }
+    //...
+    Rule Foo;
+    Bind(Foo, DoNothing);
 
 ###Restrictions for Recursion in Rules
 
@@ -123,6 +131,7 @@ You can use macro LEXEM for such constructions
 that means
 
 ```Lexem Number;
+
 Number = Digit | Digit + Number;```
 
 when parsing is finished (after Analyze call) you had to break recursion manually
@@ -137,9 +146,13 @@ Otherwise not all bnflite internal objects will be released (memory leaks expect
 
 1. cmd.cpp - simple command line example
 2. calc.cpp - arithmetic calculator
+
 >$ g++ calc.cpp
+
 >$ a.exe "2+(1+3)*2"
+
 >Result of 2+(1+3)*2 = 10
+
 Examples have been tested on several msvc and gcc compilers.
 
 
@@ -157,8 +170,8 @@ through WebMoney WMID: 047419562122
 
 ##Roadmap
 
-Productize several approaches to catch syntax errors by means of this library
-Generate fastest C code parser from C++ BNF lite statements (..looking for customer)
+- Productize several approaches to catch syntax errors by means of this library
+- Generate fastest C code parser from C++ BNF lite statements (..looking for customer)
 
 
 ##License
