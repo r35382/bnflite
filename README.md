@@ -2,7 +2,7 @@
 ##About
 
 BNF Lite is a C++ template library for lightweight flexible grammar parsers.
-It is intended to parse 
+It is intended to parse: 
  - command line arguments; 
  - small configuration files; 
  - output of different tools
@@ -10,7 +10,7 @@ It is intended to parse
 
 ##Purpose
 
-Some time ago author dealt with the ffmpeg tool used to integrate together a lot of parametrized video/audio codecs.
+Some time ago author dealt with the ffmpeg tool which was invented to integrate together a lot of parametrized video/audio codecs.
 The tool have a comprehensive command line with thousands combinations of options. Examples are poor,
 parameters sometime are ambiguous, command line is not compatible from version to version.
 Formal BNF description of command line language could help. However for projects with limited budget
@@ -57,8 +57,8 @@ Lexical production is called "lexem". We will call syntax production rule as jus
 
 All above can be presented in C++ friendly notation
 
-    Lexem Digit = Token("0") | "1"  | "2" | "4" | "5" | "6" | "7" | "8" | "9";
-    LEXEM(Number) = Digit | Digit + Number;```
+    Lexem Digit = Token("0") | "1"  | "2" | "4" | "5" | "6" | "7" | "8" | "9"; //C++11: ="0"_T + "1" ...
+    LEXEM(Number) = Digit | Digit + Number;
  
 These both expressions are executable due to this "bnflite.h" source code library
 which supports "Token", "Lexem" and "Rule" classes with overloaded "+" and "|" operators.
@@ -73,15 +73,15 @@ Now e.g. `Parser::Analyze(Number, "532")` can be called with success.
 
 Support Advanced BNF specifications introduce constructions like `"<a>*<b><element>"`
 to support repetition where `<a>` and `<b>` imply at least `<a>` and at most `<b>` occurrences of the element.
-For example,  `3*3<element>` allows exactly 3 and `1*2<element>` allows one or two.
+For example,  `3*3<element>` allows exactly three and `1*2<element>` allows one or two.
 Simplified construction `*<element>` allows any number(from 0 to infinity). Alternatively `1*<element>`
  requires at least one.
 BNF Lite offers to use the following constructions:
-`Series(a, token, b);`
-`Iterate(a, lexem, b);`
-`Repeate(a, rule, b);`
+ `Series(a, token, b);`
+ `Iterate(a, lexem, b);`
+ `Repeate(a, rule, b);`
 	
-But BNF Lite also supports ABNF-like form:
+But BNF Lite also supports ABNF-like forms:
 
     Token DIGIT("0123456789");
     Lexem AB_DIGIT = DIGIT(2,3)  /* <2>*<3><element> - any 2 or 3 digit number */
@@ -139,7 +139,9 @@ Otherwise not all bnflite internal objects will be released (memory leaks expect
 2. calc.cpp - arithmetic calculator
 
 >$ g++ calc.cpp
+
 >$ a.exe "2+(1+3)*2"
+
 >Result of 2+(1+3)*2 = 10
 
 Examples have been tested on several msvc and gcc compilers.
