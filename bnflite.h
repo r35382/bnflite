@@ -40,7 +40,7 @@
 namespace bnf
 {
 // BNF (Backus–Naur form) is a notation for describing syntax of computer languages
-// BNF Lite is the source code template library implementing the way to support BNF specifications   
+// BNF Lite is the source code template library implementing the way to support BNF specifications
 //
 // BNF Terms:
 // * Production rule is formal BNF expression which is a conjunction of a series
@@ -128,9 +128,9 @@ public:
 };
 
 #if !defined(_MSC_VER)
-#define _SET_NAME(rname) this->name = rname? rname :typeid(*this).name()
+#define _NAME_OFF 0
 #else
-#define _SET_NAME(rname) this->name = rname? rname :typeid(*this).name() + 6
+#define _NAME_OFF 6
 #endif
 
 /* internal base class to support multiform relationships between different BNF elements */
@@ -144,6 +144,12 @@ protected:              friend class _Base;  friend class ExtParser;
     mutable std::vector<const _Tie*> use;
     mutable std::list<const _Tie*> usage;
     std::string name;
+    template<class T> static void _setname(T* t, const char * name)
+        {   static int cnt = 0;
+            if (name) { t->name = name; }
+            else { t->name = typeid(*t).name() + _NAME_OFF;
+                   for( int i = ++cnt; i != 0; i /= 10) {
+                       t->name += '0' + i - (i/10)*10; } } }
     void _clone(const _Tie* lnk)
         {   usage.swap(lnk->usage);
             for (std::list<const _Tie*>::const_iterator usg = usage.begin(); usg != usage.end(); ++usg) {
@@ -220,7 +226,7 @@ public:
 };
 
 /* implementation of parsing control statements */
-template <const int flg, const char cc> class _Ctrl: public _Tie 
+template <const int flg, const char cc> class _Ctrl: public _Tie
 {
 protected:  friend class _Tie;
     virtual int _parse(_Base* parser) const throw()
@@ -237,7 +243,7 @@ public:
 };
 
  /* Null operation, immediate successful return */
-typedef _Ctrl<eOk, 'N'> Null;  //  stub for some constructions (e.g. "zero-or-one")
+typedef _Ctrl<eOk, 'N'> Null;  // stub for some constructions (e.g. "zero-or-one")
 
 /*/ Force Return, immediate return in case of success for disjunction rule */
 typedef _Ctrl<eOk|eRet, 'R'> Return;
@@ -453,11 +459,11 @@ protected: friend class _Tie;
             return stat; }
 public:
     explicit Lexem(const char *name = 0) :_Tie()
-        {   _SET_NAME(name); }
+        {   _setname(this, name); }
     virtual ~Lexem()
         {   _safe_delete(this); }
     Lexem(const _Tie& link) :_Tie()
-        {   _SET_NAME(0); _clue(link); }
+        {   _setname(this, 0); _clue(link); }
     Lexem& operator=(const Lexem& lexem)
         {   if (&lexem != this) _clue(lexem);
             return *this; }
@@ -488,19 +494,20 @@ protected:  friend class _Tie; friend class _And;
             return stat; }
 public:
     explicit Rule(const char *name = 0) :_Tie(), callback(0)
-        {   _SET_NAME(name); }
+        {   _setname(this, name); }
     virtual ~Rule()
         {   _safe_delete(this); }
     Rule(const _Tie& link) :_Tie(), callback(0)
         {   const Rule* rl = dynamic_cast<const Rule*>(&link);
             if (rl) { _clone(&link);  callback = rl->callback; name = rl->name; }
-            else { _clue(link);   callback = 0; _SET_NAME(0);  } }
+            else { _clue(link);   callback = 0; _setname(this, 0);  } }
     Rule& operator=(const _Tie& link)
         {   _clue(link); return *this; }
     Rule& operator=(const Rule& rule)
         {   if (&rule == this) return *this;
             return this->operator=((const _Tie&)rule); }
     template <class U> friend Rule& Bind(Rule& rule, U (*callback)(std::vector<U>&));
+    template <class U> Rule& operator[](U (*callback)(std::vector<U>&));
 };
 
 /* friendly debug interface */
@@ -647,6 +654,8 @@ template <class U> inline int Analyze(_Tie& root, const char* text, const char**
 /* Create association between Rule and user's callback */
 template <class U> inline Rule& Bind(Rule& rule, U (*callback)(std::vector<U>&))
     {   rule.callback = reinterpret_cast<void*>(callback); return rule; }
+template <class U> inline Rule& Rule::operator[](U (*callback)(std::vector<U>&)) // for C++11
+    {   this->callback = reinterpret_cast<void*>(callback); return *this; }
 
 
 }; // bnf::

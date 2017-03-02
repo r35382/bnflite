@@ -61,7 +61,7 @@ int main(int argc, char* argv[])
     for (int i = 1; i < argc; i++) {
         clc += argv[i];
     }
-/* Example of ABNF notation of the number (from RFC 4627) 
+/* Example of ABNF notation of the number (from RFC 4627)
         number = [ minus ] int [ frac ] [ exp ]
         decimal-point = %x2E       ; .
         digit1-9 = %x31-39         ; 1-9
@@ -90,13 +90,13 @@ int main(int argc, char* argv[])
     Bind(Expression, Calc::ByPass);
 
     Rule PrimaryExpression = "(" + Expression + ")" | number;
-    Bind(PrimaryExpression,
 #if __cplusplus > 199711L
+    PrimaryExpression[
          *[](std::vector<Calc>& res) { return *res[0].text == '('? res[1] : res[0]; }
+    ];
 #else
-            DoBracket
+     Bind(PrimaryExpression, DoBracket);
 #endif
-         );
 
     Rule UnaryExpression = !Token("+-") + PrimaryExpression;
     Bind(UnaryExpression, DoUnary);
@@ -118,7 +118,7 @@ int main(int argc, char* argv[])
 		std::cout <<"Result of " << clc << " = " << result.data << std::endl;
 	else
         std::cout << "Parsing errors detected, status = " << std::hex << tst << std::endl
-        << "stopped at: " << tail << std::endl;
+         << "stopped at: " << tail << std::endl;
 
     Expression = Null();  // disjoin Rule recursion to safe Rules removal
     return 0;

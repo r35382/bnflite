@@ -1,7 +1,7 @@
 
 ##About
 
-BNF Lite is a C++ template library for lightweight flexible grammar parsers.
+BNFLite is a C++ template library for lightweight flexible grammar parsers.
 It is intended to parse: 
  - command line arguments; 
  - small configuration files; 
@@ -10,7 +10,7 @@ It is intended to parse:
 
 ##Purpose
 
-Some time ago author dealt with the ffmpeg tool which was invented to integrate together a lot of parametrized video/audio codecs.
+Some time ago author dealt with the "ffmpeg" tool which was invented to integrate together a lot of parametrized video/audio codecs.
 The tool have a comprehensive command line with thousands combinations of options. Examples are poor,
 parameters sometime are ambiguous, command line is not compatible from version to version.
 Formal BNF description of command line language could help. However for projects with limited budget
@@ -21,14 +21,14 @@ A potential defect can be either coding bug or the requirement issue when some f
 can not be achieved(or really difficult to achieve).
 If submitted issue is not properly addressed it will be never performed and corrected!
 
-BNF Lite offers another approach when developer can specify
+BNFLite offers another approach when developer can specify
 a language of command line parameters directly in the code.
 Moreover, the "specifications" are executable now!
 
 
 ##Usage
 
-You just need to include bnflite.h in to your C++ application
+You just need to include bnflite.h in to your C++ application:
 
    `#include "bnflite.h"`
 
@@ -47,7 +47,7 @@ is a conjunction of a series of of more concrete rules or terminals:
 For example:
 
     <digit> ::= <0> | <1> | <2> | <3> | <4> | <5> | <6> | <7> | <8> | <9>
-    <number> ::= <digit> | <digit> <number>```
+    <number> ::= <digit> | <digit> <number>
  
 which means that the number is just a digit or another number with one more digit.
 Generally terminal is a symbol called "token". There are two kind of productions rules:
@@ -55,9 +55,9 @@ Lexical production is called "lexem". We will call syntax production rule as jus
 
 ###BNF Lite notation
 
-All above can be presented in C++ friendly notation
+All above can be presented in C++ friendly notation:
 
-    Lexem Digit = Token("0") | "1"  | "2" | "4" | "5" | "6" | "7" | "8" | "9"; //C++11: ="0"_T + "1" ...
+    Lexem Digit = Token("0") | "1"  | "2" | "4" | "5" | "6" | "7" | "8" | "9"; //C++11: = "0"_T + "1" ...
     LEXEM(Number) = Digit | Digit + Number;
  
 These both expressions are executable due to this "bnflite.h" source code library
@@ -100,7 +100,7 @@ The first kind of callback can be used as expression element:
     Lexem Number = Iterate(1, Digit) + MyNumber;```
 	
 The second kind of callback can be bound to production Rule.
-The user need to define own context type and work with it.
+The user need to define own context type and work with it:
 
     typedef Interface<use_cntext> Usr;
     Usr DoNothing(std::vector<Usr>& usr) {  return usr[0]; }
@@ -167,4 +167,19 @@ through WebMoney WMID: 047419562122
 
 ##License
 
-GPL v3 (see LICENSE file for details)
+ - GPL
+ 
+Practically it means that bnflite is absolutely free for open source community.
+Commercial applications are recommended to have grammar part developed
+on the manner of proprietary Linux drivers like this:
+
+    /-------------------\          /--------------------\
+/---+--------\  Gramma  |          |      Commercial    |
+|BNFlite(GPL)|  Module  | <======> |     Application    |
+\---+--------/  (LGPL)  |          | (proprietary code) |
+    \-------------------/          \--------------------/```
+
+It is not a burden for developer and ever useful.
+
+If it is not an option I can provide commercial bnflite+(developing now) on request for small fee.
+
