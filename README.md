@@ -173,7 +173,7 @@ Practically it means that bnflite is absolutely free for open source community.
 Commercial applications are recommended to have grammar part developed
 on the manner of proprietary Linux drivers like this:
 
-    /-------------------\          /--------------------\
+```    /-------------------\          /--------------------\
 /---+--------\  Gramma  |          |      Commercial    |
 |BNFlite(GPL)|  Module  | <======> |     Application    |
 \---+--------/  (LGPL)  |          | (proprietary code) |
