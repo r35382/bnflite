@@ -67,7 +67,7 @@ More practical and faster way is to use simpler form:
     Token Digit("01234567");
     Lexem Number = Iterate(1, Digit);
   
-Now e.g. `Parser::Analyze(Number, "532")` can be called with success.
+Now e.g. `bnf::Analyze(Number, "532")` can be called with success.
 
 ###ABNF Notation
 
@@ -85,9 +85,9 @@ But BNF Lite also supports ABNF-like forms:
 
     Token DIGIT("0123456789");
     Lexem AB_DIGIT = DIGIT(2,3)  /* <2>*<3><element> - any 2 or 3 digit number */
-    Lexem I_DIGIT = 1*DIGIT;    /* 1*<element> any number  */
-    Lexem O_DIGIT = *DIGIT;     /* *<element> - any number or nothing */
-    Lexem N_DIGIT = !DIGIT(2,3)  /* <0>*<1><element> - one digit or nothing */```
+    Lexem I_DIGIT = 1*DIGIT;     /* 1*<element> any number  */
+    Lexem O_DIGIT = *DIGIT;      /* *<element> - any number or nothing */
+    Lexem N_DIGIT = !DIGIT;      /* <0>*<1><element> - one digit or nothing */```
 	
 So, you can almost directly transform ABNF specifications to BNF Lite
 
@@ -133,6 +133,12 @@ like this
 Otherwise not all bnflite internal objects will be released (memory leaks expected)
 
 
+##Design Notes
+
+The prior-art is rather  ""A BNF Parser in Forth"  http://www.bradrodriguez.com/papers/bnfparse.htm .
+And this lib is not related to `Boost::Spirit` in this context. Parser goes from  implementation of domain specific language here. This is expendable approach, for example, the user can inherit public lib classes to create own constructions to parse and perform simultaneously. 
+
+
 ##Examples
 
 1. cmd.cpp - simple command line example
@@ -169,9 +175,12 @@ through WebMoney WMID: 047419562122
 
  - GPL
  
-Practically it means that bnflite is absolutely free for open source community.
-Commercial applications are recommended to have grammar part developed
-on the manner of proprietary Linux drivers like this:
+####License Note after some feedbacks
+
+This work has been done to contribute to open source community. 
+Commercial usage is possible on the manner of proprietary Linux drivers.
+
+The user should follow modular design and have grammar part developed like this:
 
         /-------------------\          /--------------------\
     /---+--------\  Gramma  |          |      Commercial    |
@@ -179,7 +188,19 @@ on the manner of proprietary Linux drivers like this:
     \---+--------/  (LGPL)  |          | (proprietary code) |
         \-------------------/          \--------------------/
 
-It is not a burden for developer and ever useful.
+But NOT like this:
+		
+                        /--------------------\		
+        /-------------------\   Commercial   |    
+    /---+--------\  Gramma  |   Application  | 
+    |BNFlite(GPL)|  Module  |     (but not   |
+    \---+--------/  (LGPL)  |    proprietary | 
+        \-------------------/      code!)    |
+                        \--------------------/		
+		
+Practically it means that user need to have all parser stuff in separate module and other code should work with internal representation of parsed data. It is good design and definitely not a burden for the user. Best way is to include GPL `bnflite.h` only once to LGPL licensed `myparser.cpp`. The law does not care how `myparser.cpp` will be linked with other application code, it just obligates the user to distribute `myparser.cpp` sources together with application binares. This is the way for the user to contribute to open source community too!
+   
+If it is not an option you can request dual licensed commercial `bnflite+` for small fee(it is not ready yet but something can be released).
 
-If it is not an option I can provide commercial bnflite+(developing now) on request for small fee.
+
 

@@ -15,6 +15,13 @@
 *                                                                         *
 *   You should have received a copy of the GNU General Public License     *
 *   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
+*                                                                         *
+*   Recommendations for commercial use:                                   *
+*   Commercial application should have dedicated LGPL licensed cpp-file   *
+*   which exclusively includes GPL licensed "bnflit.h" file. In fact,     *
+*   the law does not care how this cpp-file file is linked to other       *
+*   binary applications. Just source code of this cpp-file has to be      *
+*   published in accordance with LGPL license.                            *
 \*************************************************************************/
 
 #ifndef BNFLITE_H
@@ -220,7 +227,7 @@ public:
     _Cycle operator()(int at_least, int total); // ABNF case <a>.<b>*<element> as element(a,b)
     _Cycle operator*(); // ABNF case *<element> (from 0 to infinity)
     _Cycle operator!(); // ABNF case <0>.<1>*<element> or <1><element> (at least one)
-    // Note: more readeble to use Series, Iterate, Repeat statements correspondingly
+    // Note: more readable to use Series, Iterate, Repeat statements correspondingly
     template <class U>
     friend int Analyze(_Tie& root, const char* text, const char** pstop, U& u);
 };
