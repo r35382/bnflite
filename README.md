@@ -1,5 +1,5 @@
 
-##About
+## About
 
 BNFLite is a C++ template library for lightweight flexible grammar parsers.
 It is intended to parse: 
@@ -8,7 +8,7 @@ It is intended to parse:
  - output of different tools
 
 
-##Purpose
+## Purpose
 
 Some time ago author dealt with the "ffmpeg" tool which was invented to integrate together a lot of parametrized video/audio codecs.
 The tool have a comprehensive command line with thousands combinations of options. Examples are poor,
@@ -26,16 +26,16 @@ a language of command line parameters directly in the code.
 Moreover, the "specifications" are executable now!
 
 
-##Usage
+## Usage
 
 You just need to include bnflite.h in to your C++ application:
 
    `#include "bnflite.h"`
 
 
-##Concept
+## Concept
 
-###BNF Notation
+### BNF Notation
 
 BNF (Backus–Naur form) specificates rules of a context-free grammar.
 Each computer language should have a complete BNF syntactic specification.
@@ -53,7 +53,7 @@ which means that the number is just a digit or another number with one more digi
 Generally terminal is a symbol called "token". There are two kind of productions rules:
 Lexical production is called "lexem". We will call syntax production rule as just a "rule".
 
-###BNF Lite notation
+### BNFlite notation
 
 All above can be presented in C++ friendly notation:
 
@@ -69,7 +69,7 @@ More practical and faster way is to use simpler form:
   
 Now e.g. `bnf::Analyze(Number, "532")` can be called with success.
 
-###ABNF Notation
+### ABNF Notation
 
 Advanced BNF specifications introduce constructions like `"<a>*<b><element>"`
 to support repetition where `<a>` and `<b>` imply at least `<a>` and at most `<b>` occurrences of the element.
@@ -91,7 +91,7 @@ But BNF Lite also supports ABNF-like forms:
 	
 So, you can almost directly transform ABNF specifications to BNF Lite
 
-###User's Callbacks
+### User's Callbacks
 
 To receive intermediate parsing results callback system can be used.
 The first kind of callback can be used as expression element:
@@ -108,7 +108,7 @@ The user need to define own context type and work with it:
     Rule Foo;
     Bind(Foo, DoNothing);
 
-###Restrictions for Recursion in Rules
+### Restrictions for Recursion in Rules
 
 Lite version have some restrictions for rule recursion.
 You can not write:
@@ -133,7 +133,7 @@ like this
 Otherwise not all bnflite internal objects will be released (memory leaks expected)
 
 
-##Design Notes
+## Design Notes
 
 The prior-art is rather  ""A BNF Parser in Forth"  http://www.bradrodriguez.com/papers/bnfparse.htm .
 And this lib is not related to `Boost::Spirit` in this context. Parser goes from  implementation of domain specific language here. This is expendable approach, for example, the user can inherit public lib classes to create own constructions to parse and perform simultaneously. 
@@ -152,34 +152,34 @@ And this lib is not related to `Boost::Spirit` in this context. Parser goes from
 
 Examples have been tested on several msvc and gcc compilers.
 
-##Contacts
+## Contacts
 
 Alexander Semjonov : alexander.as0@mail.ru
 
 
-##Contributing
+## Contributing
 
 If you have any idea, feel free to fork it and submit your changes back to me.
 
 
-##Donations
+## Donations
 
 If you think that the library you obtained here is worth of some money
 and are willing to pay for it, feel free to send any amount
 through WebMoney WMID: 047419562122
 
 
-##Roadmap
+## Roadmap
 
 - Productize several approaches to catch syntax errors by means of this library
 - Generate fastest C code parser from C++ BNF lite statements (..looking for customer)
 
 
-##License
+## License
 
  - GPL
  
-####License Note after some feedbacks
+#### License Note after some feedbacks
 
 This work has been done to contribute to open source community. 
 Commercial usage is possible on the manner of proprietary Linux drivers.

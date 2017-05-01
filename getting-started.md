@@ -114,10 +114,10 @@ For the first case we need to program all expected spaces as tokens.
 But it may be not enough and zero_parse construction should be overloaded by own handler. 
 Dual licensed version has examples how to perform constructions like this `"buf [ 16 /*17*/ ]"`   
 
-##User's Callbacks
+## User's Callbacks
 
 Intermediate parsing results can be obtain by callbacks. Two kinds of callback are supported.
-1. function with prototype  `int fun(const char*, size_t)`  can be used as an expression element:
+ - Function with prototype  `int fun(const char*, size_t)`  can be used as an expression element:
 
     int SizeNumber(const char* number_string, size_t length_of_number) 
     { printf("Size of Array : %.*s;\n", length_of_number, number_string); return true; }
@@ -125,7 +125,7 @@ Intermediate parsing results can be obtain by callbacks. Two kinds of callback a
 
 The user callback can return 1 for success or 0 to fail parsing manually.
 	
-The second kind of callback can be bound to production Rule.
+ - Each Rule can be bound with callback to implement user needs
 The user needs to define own working type for his data. This type is used for specialisation 
 of BNFlite Interface template class to pass data between Rules. 
 
@@ -141,14 +141,14 @@ and returns single Interface object as result. Root result is in `Analyze` call.
     int tst = bnf::Analyze(Identifier, "b[16];", &end, usr);
 
 
-##Debugging
+## Debugging
 
 Each BNFlite object can be identified by name.
 This name is used mostly for debugging goals.
 The user can assign name in constructor or/and use setName/getName functions.
 
 
-##Optimization
+## Optimization
 
 Generally, BNFlite utilizes simple top-down parser with backtracking.
 This parser may be not so good for complex grammar. However, the user has ways to make parsing smarter.
