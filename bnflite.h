@@ -27,26 +27,16 @@
 #ifndef BNFLITE_H
 #define BNFLITE_H
 
-
-#include <ctype.h>
-#include <stdlib.h>
-#include <string.h>
-
 #include <string>
-#include <utility>
+#include <list>
 #include <vector>
-#include <stack>
-#include <set>
 #include <bitset>
 #include <algorithm>
-#include <functional>
-#include <cstdarg>
-#include <list>
 #include <typeinfo>
 
 namespace bnf
 {
-// BNF (Backus–Naur form) is a notation for describing syntax of computer languages
+// BNF (Backus-Naur form) is a notation for describing syntax of computer languages
 // BNF Lite is the source code template library implementing the way to support BNF specifications
 //
 // BNF Terms:
@@ -220,7 +210,7 @@ public:
     friend _Or operator|(const char* s, const _Tie& lnk);
     friend _Or operator|(bool (*f)(const char*, size_t), const _Tie& lnk);
 
-    // Support Advanced BNF constructions like "<a>*<b><element>" to implement repetition;
+    // Support Augmented BNF constructions like "<a>*<b><element>" to implement repetition;
     // In ABNF <a> and <b> imply at least <a> and at most <b> occurrences of the element;
     // e.g *<element> allows any number(from 0 to infinity, 1*<element> requires at least one;
     // 3*3<element> allows exactly 3 and 1*2<element> allows one or two.
@@ -252,16 +242,16 @@ public:
  /* Null operation, immediate successful return */
 typedef _Ctrl<eOk, 'N'> Null;  // stub for some constructions (e.g. "zero-or-one")
 
-/*/ Force Return, immediate return in case of success for disjunction rule */
+/* Force Return, immediate return from conjunction rule to impact disjunction rule */
 typedef _Ctrl<eOk|eRet, 'R'> Return;
 
-/*/ Switch to use "Accept First" strategy for disjunction rule instead "Accept Best" */
-typedef _Ctrl<eOk|e1st, '1'> AcceptFirst;
+/* Switch to use "Accept First" strategy for disjunction rule instead "Accept Best" */
+typedef _Ctrl<e1st, '1'> AcceptFirst;
 
 /* Try to catch Syntax error in current conjunction rule */
 typedef _Ctrl<eOk|eTry, 'T'> Try;
 
-/* Accept result but skip to move pointer for next statement of conjunction rule */
+/* Check but do not accept next statement for conjunction rule */
 typedef _Ctrl<eOk|eSkip, 'S'> Skip;
 
 
@@ -290,7 +280,7 @@ public:
         {   Add(c, c); };    // create single char token
     Token(int first, int last) :_Tie(std::string(1,first).append("-") += last)
         {   Add(first, last); };    // create token by ASCII char diapason
-    Token(const char *s) :_Tie(std::string(1,s[0]).append("..") += s[strlen(s) - 1])
+    Token(const char *s) :_Tie(std::string(s))
         {   Add(s); }; // create token by C string sample
     Token(const Token& token) :_Tie(token), match(token.match)
         {};
@@ -333,7 +323,7 @@ protected:  friend class _Tie;
             return (*action)(*itr, parser->cntxV.back() - *itr); }
 public:
     Action(bool (*action)(const char* lexem, size_t len), const char *name = "")
-        :_Tie(name), action(action) {} ;
+        :_Tie(name), action(action) {};
     virtual ~Action()
         {   _safe_delete(this); }
 };
@@ -355,13 +345,13 @@ protected: friend class _Tie;
                         parser->cntxV.resize(save);
                         save = 0; }
                     if (stat & eSkip) {
-                        save = parser->cntxV.size();}
+                        save = parser->cntxV.size(); }
                 } else {
                     if (parser->level && (stat & eTry) && !(stat & eError) && !save) {
                         stat |= parser->Catch(); }
                     parser->_erase(size);
                     return (stat & (eEof|eOver)? eError : eErr) | (stat & ~(eTry|eSkip|eOk)); }}
-            return (stat & eTry? eRet : eNone) | eOk | (stat & ~(eTry|eSkip));        }
+            return (stat & eTry? eRet : eNone) | eOk | (stat & ~(eTry|eSkip));   }
 public:
     ~_And()
         {   _safe_delete(this); }
@@ -413,7 +403,7 @@ protected: friend class _Tie;
                         continue;  }  }
                 if (parser->cntxV.size() > msize) {
                     parser->_erase(msize); } }
-            return max || tmp >= 0 ? stat | eOk: stat & ~eOk; }
+            return (max || tmp >= 0 ? stat | eOk: stat & ~eOk) & ~(e1st|eRet); }
 public:
     ~_Or()
         {   _safe_delete(this); }

@@ -71,7 +71,7 @@ Now e.g. `bnf::Analyze(Number, "532")` can be called with success.
 
 ### ABNF Notation
 
-Advanced BNF specifications introduce constructions like `"<a>*<b><element>"`
+Augmented BNF specifications introduce constructions like `"<a>*<b><element>"`
 to support repetition where `<a>` and `<b>` imply at least `<a>` and at most `<b>` occurrences of the element.
 For example,  `3*3<element>` allows exactly three and `1*2<element>` allows one or two.
 Simplified construction `*<element>` allows any number(from 0 to infinity). Alternatively `1*<element>`
@@ -151,6 +151,28 @@ And this lib is not related to `Boost::Spirit` in this context. Parser goes from
 >Result of 2+(1+3)*2 = 10
 
 Examples have been tested on several msvc and gcc compilers.
+
+
+## Demo (simplest formula compiler & bite-code interpreter)
+
+1. main.cpp - starter of byte-code compiler and interpreter
+2. parser.cpp - BNF-lite parser with grammar section and callbacks
+3. code_gen.cpp - byte-code generator
+4. code_lib.cpp - several examples of functions (e.g POW(2,3) - power: 2*2*2)
+5. code_run.cpp - byte-code interpreter (used SSE2 for parallel calculation of 4 formulas)
+
+To build and run:
+
+>$ g++ -O2 -march=pentium4 -std=c++14 -I.. code_gen.cpp  parser.cpp  code_lib.cpp  main.cpp code_run.cpp
+
+> $ a.exe "2+(1+3)*2"
+
+> 7 byte-codes in 2+(1+3)*2
+
+> Byte-code: Int(2),Int(1),Int(3),opAdd<I,I>,Int(2),opMul<I,I>,opAdd<I,I>
+
+> result = 10, 10, 10, 10
+
 
 ## Contacts
 
