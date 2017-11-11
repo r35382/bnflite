@@ -1,5 +1,5 @@
 /*************************************************************************\
-*   Parser part of expression-like bitecode compiler (based on BNF-Lite)  *
+*   Parser part of  bite-code formula compiler (based on BNFlite)         *
 *   Copyright (c) 2017 by Alexander A. Semjonov.  ALL RIGHTS RESERVED.    *
 *                                                                         *
 *   This code is free software: you can redistribute it and/or modify it  *
@@ -24,9 +24,9 @@
 
 using namespace bnf;
 
-static bool printMsg(const char* lexem, size_t len)
+static bool printErr(const char* lexem, size_t len)
 {
-    printf("Not supported yet: %.*s;\n", len, lexem);
+    printf("strings are not supported yet: %.*s;\n", len, lexem);
     return false;
 }
 
@@ -43,17 +43,26 @@ Gen DoString(std::vector<Gen>& res)
     return res[1];
 }
 
+
 Gen DoNumber(std::vector<Gen>& res)
-{
-    if( res.size() == 1 || (res.size() == 2 && *res[0].text == '-')) {
-        return Gen(std::list<byte_code>(1, byte_code(opInt, (int)strtol(res[0].text, 0, 10))), res);
-    } else {
-        return Gen(std::list<byte_code>(1, byte_code(opFloat, (float)strtod(res[0].text, 0))), res);
-    }
+{   /* use strtol/strtod to get value of parsed number */
+    char* lst;
+	int j = res.size() - 1;
+    int ivalue = strtol(res[0].text, &lst, 10); 
+    if (lst - res[j].text - res[j].length == 0) {
+		return Gen(std::list<byte_code>(1, byte_code(opInt, ivalue)), res);
+	}
+    float fvalue = (float)strtod(res[0].text, &lst); 
+    if (lst - res[j].text - res[j].length == 0) {
+		return Gen(std::list<byte_code>(1, byte_code(opFloat, fvalue)), res);
+	}
+    std::cout << "number parse error:"; std::cout.write(res[0].text, res[0].length);
+    return  Gen(std::list<byte_code>(1, byte_code(opError, 0)), res);
+
 }
 
 Gen DoUnary(std::vector<Gen>& res)
-{   /* pass rersult of unary operation ( just only '-' ) */
+{   /* pass result of unary operation ( just only '-' ) */
     if (*res[0].text == '-') {
         return Gen(GenUnaryOp('-', res[1].data), res);
     }
@@ -91,33 +100,32 @@ std::list<byte_code> bnflite_byte_code(std::string expr)
     Lexem frac_ = "." + i_digit;
     Lexem int_ = "0" | digit1_9  + *DIGIT;
     Lexem exp_ = "Ee" + !Token("+-") + i_digit;
+    Lexem number_ = !Token("-") + int_ + !frac_ + !exp_;
+    Rule number = number_;
 
-    RULE(number) = !Token("-") + int_ + !frac_ + !exp_;
+    Token az_("_"); az_.Add('A', 'Z'); az_.Add('a', 'z');
+    Token az01_(az_); az01_.Add('0', '9');
 
-    Token alpha_("_"); alpha_.Add('A', 'Z'); alpha_.Add('a', 'z');
-    Token alnum_("_"); alnum_.Add('A', 'Z'); alnum_.Add('a', 'z'); alnum_.Add('0', '9');
+    Token all(1,255); all.Remove("\"");
 
-    Token string0(1,255); string0.Remove("\"");
+    Lexem identifier = az_  + *(az01_);
+    Lexem quotedstring = "\"" + *all + "\"";
 
-    Lexem identifier = alpha_  + *(alnum_);
-    Lexem quotedstring = "\"" + string0 + "\"";
+    Rule expression;
+    Rule unary;
 
-    RULE(expression);
-    RULE(unary);
+    Rule function = identifier + "(" + !(expression + *("," + expression)) +  ")";
 
-    RULE(function) = identifier + "(" + expression + *("," + expression) +  ")";
-
-    RULE(elementary) = AcceptFirst()
+    Rule elementary = AcceptFirst()
             | "(" + expression + ")"
             | function
             | number
-            | quotedstring + printMsg
-            | unary
-    ;
+            | quotedstring + printErr
+            | unary;
 
     unary = Token("-") + elementary;
 
-    RULE(primary) = elementary + *("*%/" + elementary);
+    Rule primary = elementary + *("*%/" + elementary);
 
     /* Rule */ expression = primary + *("+-" + primary);
 

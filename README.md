@@ -102,7 +102,7 @@ The first kind of callback can be used as expression element:
 The second kind of callback can be bound to production Rule.
 The user need to define own context type and work with it:
 
-    typedef Interface<use_cntext> Usr;
+    typedef Interface<user_cntext> Usr;
     Usr DoNothing(std::vector<Usr>& usr) {  return usr[0]; }
     //...
     Rule Foo;
