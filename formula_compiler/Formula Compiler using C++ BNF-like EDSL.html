@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<!-- saved from url=(0081)https://www.codeproject.com/script/Articles/ViewHtml.aspx?aid=1214286&waid=250111 -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>Article Source</title>
+<link rel="stylesheet" type="text/css" href="./Запретить_files/Main.css">
+<!--<base href="https://www.codeproject.com/KB/cpp/">--><base href=".">
+</head>
+<body>
+<!--
+HTML for article "Formula Compiler using C++ BNF-like EDSL" by Alexander Semjonov
+URL: https://www.codeproject.com/KB/cpp/1214286.aspx
+Copyright 2017 by Alexander Semjonov
+All formatting, additions and alterations Copyright © CodeProject, 1999-2017
+-->
+
+
+
+<p><b>Formula Compiler using C++ BNF-like EDSL</b></p>
+
+<hr class="Divider subdue">
+<div>
+
+
+
+
+<!-- Start Article -->
+<span id="ArticleContent">
+
+
+<h2>Preface</h2>
+
+<p>Is there an area where a new programming language developed from scratch can be applied? For the first glance, there are no requirements which cannot be covered by the existing languages. However, such areas exist, e.g. systems where parallel calculation is required. It is remarkable the computer society has been looking a language to support grammar parsers itself! BNF (Backus Naur Form) notation and it’s derivatives (ABND, EBNF, etc.) are widely used for formal specifications of programming languages.</p>
+
+<p>Although such specifications are really good for both requirements and design they do not help for parser programming. Another approach is to generate code for parsers. The most famous tool is yacc (Yet Another Compiler Compiler) the precompile routine which can generate C parser code from syntactic definition in BNF-like form. This solution is considered as heavy and the software community has been looking for something easier.</p>
+
+<p>For the C++ the approach is obvious: a lite solution should be presented as embedded domain specific language (EDSL). It means BNF-like statements have to be mapped to both C++ keywords and overloaded operators. One known example is boost::spirit template library. This paper introduces the&nbsp;BNFLite C++ template library&nbsp;and demonstrates how to create the simplest byte-code formula compiler using this tool.</p>
+
+<h2>Introduction to BNFLite</h2>
+
+<p>The BNFLite implements embedded domain specific language approach for gramma specifications when all "production rules" are constructed as instances of C++ classes concatenated by means of overloaded arithmetic operators. For example, the integer number in BNF specs can be described as:</p>
+
+<pre lang="text">&lt;digit&gt; ::= &lt;0&gt; | &lt;1&gt; | &lt;2&gt; | &lt;3&gt; | &lt;4&gt; | &lt;5&gt; | &lt;6&gt; | &lt;7&gt; | &lt;8&gt; | &lt;9&gt;
+&lt;number&gt; ::= &lt;digit&gt; | &lt;digit&gt; &lt;number&gt;
+</pre>
+
+<p>This representation can be written on C++ using BNFlite approach:&nbsp;&nbsp;</p>
+
+<pre lang="c++">#include <span class="code-string">"bnflite.h" // include source code lib
+</span>using namespace bnf;
+Lexem Digit = Token("0") | "1"  | "2" | "4" | "5" | "6" | "7" | "8" | "9";
+Lexem Number;
+Number = Digit | Digit + Number;
+</pre>
+
+<p>Execution of this C++ code produces an internal date structures for further parsing procedures.</p>
+
+<p>&nbsp;</p>
+
+<h2>Requirements for Formula Compiler</h2>
+
+<p>Let specify base requirements to the language of the formula compiler to be developed</p>
+
+<ol>
+	<li>Byte-code compiler shall be founded on expression like language:
+	<ol>
+		<li>The following base types shall be supported: &lt;INTEGER&gt; | &lt;FLOAT&gt; | &lt;STRING&gt;</li>		<li>The compiler shall support unary negative operation and basic binary arithmetic operations</li>		<li>The compiler shall be able to generate code to call C++ functions defined in body program</li>	</ol>
+	</li></ol>
+
+<p>This is enough for design of simple programming language, which can be described in Backus-Naur Form.</p>
+
+<p>Formal BNF term is called "production rule". Each rule except "terminal" is a conjunction of a series of more concrete rules or terminals: <code>production_rule ::= &lt;rule_1&gt;...&lt;rule_n&gt; | &lt;rule_n_1&gt;...&lt;rule_m&gt;</code>.&nbsp;So, the designed expression-like language can be presented by the following terms:</p>
+
+<pre lang="text">&lt;operand&gt; ::= &lt;INTEGER&gt; | &lt;FLOAT&gt; | &lt;STRING&gt;
+&lt;operator&gt; ::= "+" | "-" | "*" | "/"
+&lt;arguments&gt; ::= &lt;EMPTY&gt; | &lt;expression&gt; | &lt; arguments&gt; "," &lt;expression&gt;
+&lt;function&gt; ::= &lt;IDENTIFIER&gt; "(" &lt; arguments &gt; ")"
+&lt;expression&gt; ::= &lt;operand&gt; | &lt;function&gt; | "-" &lt;expression&gt; | &lt;expression&gt; &lt;operator&gt; &lt;expression&gt; | "(" &lt;expression&gt; ")"</pre>
+
+<p>Such decryption is formally correct but it has two known issues. Firstly, binary operator precedence is not presented. Secondly, it contains redundant number of recursions which can be substituted by repetitions.</p>
+
+<p>&nbsp;Augmented BNF specifications introduce constructions like <code>&lt;a&gt;*&lt;b&gt;&lt;element&gt;&nbsp;</code>to support repetition where <code>&lt;a&gt;</code>&nbsp;and <code>&lt;b&gt;</code>&nbsp;imply at least <code>&lt;a&gt;</code>&nbsp;and at most <code>&lt;b&gt;</code>&nbsp;occurrences of the element. For example, <code>3*3&lt;element&gt;</code>&nbsp;allows exactly three and <code>1*2&lt;element&gt;</code>&nbsp;allows one or two. <code>*&lt;element&gt;</code>&nbsp;simplified construction allows any number (from 0 to infinity). Alternatively <code>1*&lt;element&gt;</code>&nbsp;enclose an optional element (at least one) and it can be optionally presented as <code>[element]</code>.&nbsp;</p>
+
+<p>Full specifications of the formula compiler language in ABNF form are not so complex:</p>
+
+<pre lang="text">ALPHA  =  'A'-'Z' | 'a'-'z'
+DIGIT  =  '0'-'9'
+digit1_9 =  '1'-'9'
+string  = '\"' *( ALPHA  | DIGIT | '_' ) '\"'
+e = 'e' | 'E'            
+exp = e ['-' | '+'] 1*DIGIT
+frac = '.' 1*DIGIT
+int = '0' | ( digit1_9 *DIGIT )
+number = [ '-' ] int [ frac ] [ exp ]
+operand = int | number | string
+operator = '+' | '-' | '*' | '/'
+identifier =  (ALPHA | '_') *( ALPHA  | DIGIT | '_' )
+arguments ::=  expression *( ',' expression )
+function ::= identifier '(' [arguments]  ')'
+elementary ::= operand | function | ('-' elementary) | ('(' expression ')')
+primary = elementary *(('/' elementary) | ('*' elementary))
+expression = primary *(('-' primary) | ('+' primary))</pre>
+
+<p>These specs are more computer friendly then previous ones.&nbsp;</p>
+
+<h2>Short Design Notes</h2>
+
+<p>The simple byte-code compiler is a minor extension of the expression calculator. For example, the expression 2 + 3 * 4 can be converted to tree.</p>
+
+<pre lang="text">└──+
+   ├── 2
+   └──*
+      ├── 3
+      └── 4</pre>
+
+
+	<table border="1" cellpadding="1" cellspacing="1" style="width: 500px"><tbody>	</tbody></table>
+
+<p>It can be written on C manned “add(2, mul(3, 4))” form.&nbsp; Let write it reversely: ” (2,(3,4)mul)add”. This form is called as revers polish notation(RPN) and byte-codes can be easily generated:</p>
+
+<pre lang="text">Int(2) Int(3), Int(4), Mul&lt;I,I&gt;, Addl&lt;I,I&gt;</pre>
+
+<p>Int(number) operation pushes the number to the stack. Mul/Add operation pops two parameters from the stack and pushes the result.</p>
+
+<p>Practical benefit of the formula compiler comes only when functions are used. Let consider “liner map” <code>2 + 3 *GetX()</code>. The byte-code will be:</p>
+
+<pre lang="text">Int(2) Int(3), Call&lt;0&gt;, Mul&lt;I,I&gt;, Addl&lt;I,I&gt;</pre>
+
+<p>For example, this functionally can be cyclically applied to X database column to obtain Y column (Moreover, the provided demo does four calculations simultaneously but it is rather the scope of another paper).</p>
+
+<p>All byte-codes consist of two fields: type and union for integer, float and pointer to string.</p>
+
+<pre lang="c++">struct byte_code
+{
+    OpCode type;
+    union {
+        int val_i;
+        float val_f;
+        const char* val_s;
+    };
+    byte_code(): type(opNop), val_i(0) {};
+    /* … */</pre>
+
+<p>The union represents the operand for the simple “immediate addressing mode”. The type is the operation code based upon the following enumerator:</p>
+
+<pre lang="c++">enum OpCode
+{
+    opFatal = -1, opNop = 0,
+    opInt = 1,  opFloat = 2,  opStr = 3,  opMaskType = 0x03,
+    opError = 1, opNeg = 2, opPos = 3, opCall = 4,
+    opToInt = 5,  opToFloat = 6, opToStr = 7,
+    opAdd = 2,  opSub = 3,  opMul = 4,  opDiv = 5,
+};</pre>
+
+<p>The real operation code is a little<em>&nbsp;</em>more complex. It contains types for stack operands.&nbsp;&nbsp;</p>
+
+<h2>BNFLite Grammar classes (Token, Lexem and Rule)</h2>
+
+<p>The BNFLite description is similar to EBNF specifications above.</p>
+
+<h5>Number:</h5>
+
+<pre lang="c++">Token digit1_9('1', '9');
+Token DIGIT("0123456789");
+Lexem i_digit = 1*DIGIT;
+Lexem frac_ = "." + i_digit;
+Lexem int_ = "0" | digit1_9  + *DIGIT;
+Lexem exp_ = "Ee" + !Token("+-") + i_digit;
+Lexem number_ = !Token("-") + int_ + !frac_ + !exp_;
+Rule number = number_;</pre>
+
+<p>The <code>Token</code> class represents terminals, which are symbols. The&nbsp;<code>Lexem</code>&nbsp;constructs strings of symbols. Parsing is a process of analyzing tokens and lexemes of the input stream. The unary C operator `<code>*</code>` means the construction can be repeated from 0 to infinity. The binary C operator `<code>*</code>` means the construction like <code>1*DIGIT</code> can be repeated from 1 to infinity. The unary C operator `<code>!</code>`&nbsp;means the construction is optional.</p>
+
+<p>Practically, <code>Rule</code>&nbsp;is similar to <code>Lexem</code>&nbsp;except for callbacks and spaces sensitivity. The construction <code>Rule number_ = !Token("-") + int_ + !frac_ + !exp_;</code> allows incorrect spaces e.g. between integer and fractional parts.</p>
+
+<h5>Strings and identifiers:</h5>
+
+<pre lang="c++">Token az_("_"); az_.Add('A', 'Z'); az_.Add('a', 'z');
+Token az01_(az_); az01_.Add('0', '9');
+Token all(1,255); all.Remove("\"");
+Lexem identifier = az_  + *(az01_);
+Lexem quotedstring = "\"" + *all + "\"";
+</pre>
+
+<p>The <em>Token</em> <code>all</code>&nbsp;represents all symbols except quote;</p>
+
+<h5>Major parsing rules:</h5>
+
+<pre lang="c++">Rule expression;
+Rule unary;
+Rule function = identifier + "(" + !(expression + *("," + expression)) +  ")";
+Rule elementary = AcceptFirst()
+        | "(" + expression + ")"
+        | function
+        | number
+        | quotedstring + printErr
+        | unary;
+unary = Token("-") + elementary;
+Rule primary = elementary + *("*%/" + elementary);
+/* Rule */ expression = primary + *("+-" + primary);
+</pre>
+
+<p><code>Expression</code>&nbsp;and <code>unary</code>&nbsp;rules are recursive. They need to be declare earlier. The <code>AcceptFirst()</code> statement changes parser behavior from the default mode to “accept best” for this particular <code>Rule</code>. After that the parser chooses a first appropriate construction instead of the most appropriate one.</p>
+
+<h2>Parser Calls and Callbacks</h2>
+
+<p>Recursive descent parser implies tree composition. The user needs a means to track the tree traversal recursion. First of all,&nbsp;the&nbsp;interface object structure to interact with the parser should be specified.</p>
+
+<pre lang="c++">typedef Interface&lt; std::list&lt;byte_code&gt; &gt; Gen;
+/* ... */
+const char* tail = 0;
+Gen result;
+int tst = Analyze(expression, expr.c_str(), &amp;tail, result);</pre>
+
+<p>Parsing starts by the <code>Analyze</code>&nbsp;call with the following arguments:</p>
+
+<ul>
+	<li><code>expression</code> – root Rule object of BNFlite gramma</li>	<li><code>expr.c_str()</code> – string of the expression to be compiled to byte-code</li>	<li><code>tail</code> – pointer to end of text in case of successful parsing or to place where parsing is stopped due to error</li>	<li><code>result</code> – final object from users callbacks</li>	<li><code>tst</code> – contains result of parsing implemented as bitwise flags, error if negative</li></ul>
+
+<p>The Callback function accepts vector of byte-code lists formed early. It returns the list of new formed byte-codes. For example, <code>Gen DoNumber(std::vector&lt;Gen&gt;&amp; res)</code> accepts the one element vector representing a number. It has to return the result&nbsp;<code>Gen</code> object with filled user's&nbsp;<code>data</code>&nbsp;(either<em> Int&lt;&gt;</em> or <em>Float&lt;&gt;)</em>.</p>
+
+<p>In common case the callback <code>Gen DoBinary(std::vector&lt;Gen&gt;&amp; res)</code> accepts &nbsp;the left byte-code vector, the sign of operation(<code>+**/</code>), and the right byte-code vector. The callback just joints left and right byte-code vectors and generate the tail byte-code according to the sign.</p>
+
+<h2>Comparison with Boost::Spirit Implementation&nbsp;</h2>
+
+<p>This is a grammar part implemented by means of boost::spirit template library:</p>
+
+<pre lang="C++">namespace q = boost::spirit::qi;
+
+typedef boost::variant&lt;
+&nbsp; &nbsp; int, float, std::string,
+&nbsp; &nbsp; boost::recursive_wrapper&lt;struct binary_node&gt;,
+&nbsp; &nbsp; boost::recursive_wrapper&lt;struct unary_node&gt;,
+&nbsp; &nbsp; boost::recursive_wrapper&lt;struct call_node&gt;
+&gt; branch_t;
+
+template &lt;typename Iterator&gt;
+struct SParser: q::grammar&lt;Iterator, branch_t, q::space_type&gt;
+{
+&nbsp; &nbsp; q::rule&lt;Iterator, branch_t, q::space_type&gt; expression, primary, elementary, unary;
+&nbsp; &nbsp; q::rule&lt;Iterator, std::string()&gt; quotedstring;
+&nbsp; &nbsp; q::rule&lt;Iterator, std::string()&gt; identifier;
+&nbsp; &nbsp; q::rule&lt;Iterator, std::vector&lt;branch_t&gt;, q::space_type&gt; arglist;
+&nbsp; &nbsp; q::rule&lt;Iterator, call_node, q::space_type&gt; function;
+
+&nbsp; &nbsp; SParser() : SParser::base_type(expression)
+&nbsp; &nbsp; {
+&nbsp; &nbsp; using boost::phoenix::construct;
+&nbsp; &nbsp; &nbsp; &nbsp;&nbsp;
+&nbsp; &nbsp; expression = primary[q::_val = q::_1]
+&nbsp; &nbsp; &nbsp; &nbsp; &gt;&gt; *('+' &nbsp;&gt; primary[q::_val = construct&lt;binary_node&gt;(q::_val, q::_1, '+')]
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | '-' &gt; primary[q::_val = construct&lt;binary_node&gt;(q::_val, q::_1, '-')] );
+&nbsp; &nbsp; primary = &nbsp; elementary[q::_val = q::_1]
+&nbsp; &nbsp; &nbsp; &nbsp; &gt;&gt; *('*' &nbsp;&gt; elementary[q::_val = construct&lt;binary_node&gt;(q::_val, q::_1, '*')]
+&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; | '/' &gt; elementary[q::_val = construct&lt;binary_node&gt;(q::_val, q::_1, '/')] );
+&nbsp; &nbsp; unary = '-' &gt; elementary[q::_val = construct&lt;unary_node&gt;(q::_1, '-')];&nbsp;
+
+&nbsp; &nbsp; elementary = q::real_parser&lt;float, q::strict_real_policies&lt;float&gt;&gt;()[q::_val = q::_1]
+&nbsp; &nbsp; &nbsp; &nbsp; | q::int_[q::_val = q::_1]
+&nbsp; &nbsp; &nbsp; &nbsp; | quotedstring[q::_val = q::_1]
+&nbsp; &nbsp; &nbsp; &nbsp; | ('(' &gt; expression &gt; ')')[q::_val = q::_1]
+&nbsp; &nbsp; &nbsp; &nbsp; | function[q::_val = q::_1]
+&nbsp; &nbsp; &nbsp; &nbsp; | unary[q::_val = q::_1];
+
+&nbsp; &nbsp; quotedstring = '"' &gt; *(q::char_ - '"') &gt; '"';
+&nbsp; &nbsp; identifier = (q::alpha | q::char_('_')) &gt;&gt; *(q::alnum | q::char_('_'));
+
+&nbsp; &nbsp; arglist = '(' &gt; (expression % ',')[q::_val = q::_1] &gt; ')';
+&nbsp; &nbsp; function = (identifier &gt; arglist)[q::_val = construct&lt;call_node&gt;(q::_1, q::_2)];
+
+&nbsp; &nbsp; on_error(expression, std::cout &lt;&lt; boost::phoenix::val("Error "));
+&nbsp; &nbsp; }
+};</pre>
+
+<h6>Please, refer to boost::spirit documentation for details. The example is provided for demonstration similarity of boost::spirit gramma to BNFlite one.</h6>
+
+<p>Boost::spirit is more mature tool and does not use callbacks. For each “rule” it calls constructors of classes which should be member of boost::variant. Therefore, boost::spirit cannot be used for <em>one-pass compilers</em>. However, boost::variant can be&nbsp;effective if something more complex is required (e.g. <em>byte-code optimizers</em>).</p>
+
+<p>Problems of boost::spirit lie in another area. Any inclusion of boost::spirit considerably increases project compiler time. Another significant drawback of boost::spirit is related to run-time debugging of the gramma - it is not possible at all!&nbsp;</p>
+
+<h2>Debugging of BNFLite Gramma</h2>
+
+<p>Writing gramma by EDSL is unusual and the user does not have full understanding about the parser. If the <code>Analyze</code>&nbsp;call returns an error for the correct text then the user always should take into consideration the possibility of grammar bugs. &nbsp;</p>
+
+<h5>Return code</h5>
+
+<p>Return code from Analyze call can contain flags related to the gramma. For example, <code>eBadRule</code>, <code>eBadLexem </code>flags&nbsp;mean&nbsp;the tree of rules is not properly built.</p>
+
+<h5>Names and breakpoints</h5>
+
+<p>The user can assign a name to the <code>Rule</code>. It can help to track recursive descent parser using <code>Rule::_parse</code> function. Debugger stack (history of function calls) can inform which Rule was applied and when. The user just needs to watch the <code>this.name</code>&nbsp;variable. It is not as difficult as it seems at first glance.</p>
+
+<h5>&nbsp;Gramma subsets</h5>
+
+<p><code>Analyze</code>&nbsp;function can be applied as unit test&nbsp;to any Rule representing subset of gramma.</p>
+
+<h5>Tracing</h5>
+
+<p>Function with prototype “<code>bool foo(const char* lexem, size_t len)</code>” can be used in BNFLite expressions for both reasons: to obtain temporary results and to&nbsp;inform about predicted errors.</p>
+
+<p>This function will print the parsed number</p>
+
+<pre lang="c++">static bool DebugNumber(const char* lexem, size_t len)
+{    printf("The number is: %.*s;\n", len, lexem);    return true; }
+    /* … */
+Rule number = number_ + DebugNumber;</pre>
+
+<p>The function should return true if result is correct.</p>
+
+<p>Let assume the numbers with leading ‘<code>+</code>’ are not allowed</p>
+
+<pre lang="c++">static bool ErrorPlusNumber(const char* lexem, size_t len)
+{printf("The number %.*s with plus is not allowed\n", len, lexem); return false;}
+    /* … */
+Lexem number_p = !Token("+") + int_ + !frac_ + !exp_ + ErrorPlusNumber;
+Rule number = number_ | number_p;</pre>
+
+<p>The function should return false to pass the incorrect result to the parser. C++11 constructions like below are also possible:</p>
+
+<pre lang="c++">Rule number = number_ | [](const char* lexem, size_t len)
+{ return !printf("The number %.*s with plus is not allowed\n", len, lexem); }</pre>
+
+<h2>Building and Run</h2>
+
+<p>The attached simplest formula compiler package has the following C++&nbsp;files:</p>
+
+<ol>
+	<li>main.cpp - starter of byte-code compiler and interpreter</li>	<li>parser.cpp - BNFLite parser with grammar section and callbacks</li>	<li>code_gen.cpp - byte-code generator</li>	<li>code_lib.cpp - several examples of built-in functions (e.g POW(2,3) - power: 2*2*2)</li>	<li>code_run.cpp - byte-code interpreter (used SSE2 for parallel calculation of 4 formulas)</li></ol>
+
+<p>The package has several prebuilt projects but generally it can build as:</p>
+
+<pre lang="text">&gt;$ g++ -O2 -march=pentium4 -std=c++14 -I.. code_gen.cpp  parser.cpp  code_lib.cpp  main.cpp code_run.cpp</pre>
+
+<p>Function&nbsp;GetX() returns four values: 0, 1, 2, 3. It can be used in expression to&nbsp;be compiled and calculated:</p>
+
+<pre lang="text">&gt; $ a.exe "2 + 3 *GetX()"  
+5 byte-codes in: 2+3*GetX()
+Byte-code: Int(2),Int(3),opCall&lt;I&gt;,opMul&lt;I,I&gt;,opAdd&lt;I,I&gt;;
+result = 2, 5, 8, 11;</pre>
+
+<h2>Conclusion</h2>
+
+<p>The presented formula compiler is the realization of several ideas in order to demonstrate its feasibility. First of all, it is parallel computation according to compiled formula. Secondly, it introduces BNFLite header library to spread existing concept of applicability of BNF forms. Now a fast parser implementation can be easily created for specific customer requirements where BNF-like language is used.</p>
+
+<h2>References</h2>
+
+<p>[1] BNFLite&nbsp;with some examples, https://github.com/r35382/bnflite</p>
+
+
+</span>
+<!-- End Article -->
+
+
+
+
+</div> 
+
+
+</body></html>
