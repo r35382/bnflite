@@ -12,12 +12,12 @@ It is intended to parse:
 
 Some time ago author dealt with the "ffmpeg" tool which was invented to integrate together a lot of parametrized video/audio codecs.
 The tool have a comprehensive command line with thousands combinations of options. Examples are poor,
-parameters sometime are ambiguous, command line is not compatible from version to version.
-Formal BNF description of command line language could help. However for projects with limited budget
+parameters sometime are ambiguous, the command line is not compatible from version to version.
+Formal BNF specs of the command line language could help. However, for projects with limited budget
 a process solution does not exist. The tool still is in progress and it is really difficult
 to support any requirements document on-time.
 But without any formal descriptions world users have a really problems reporting something that not work.
-A potential defect can be either coding bug or the requirement issue when some functionality
+A potential defect can be either the coding bug or the requirement issue when some functionality
 can not be achieved(or really difficult to achieve).
 If submitted issue is not properly addressed it will be never performed and corrected!
 
@@ -141,8 +141,9 @@ And this lib is not related to `Boost::Spirit` in this context. Parser goes from
 
 ##Examples
 
-1. cmd.cpp - simple command line example
-2. calc.cpp - arithmetic calculator
+1. cmd.cpp - simple command line parser
+2. cfg.cpp - parser of restricted xml configuration
+3. calc.cpp - arithmetic calculator
 
 >$ g++ calc.cpp
 
@@ -155,10 +156,10 @@ Examples have been tested on several msvc and gcc compilers.
 
 ## Demo (simplest formula compiler & bite-code interpreter)
 
-1. main.cpp - starter of byte-code compiler and interpreter
+1. main.cpp - starter of byte-code formula compiler and interpreter
 2. parser.cpp - BNF-lite parser with grammar section and callbacks
 3. code_gen.cpp - byte-code generator
-4. code_lib.cpp - several examples of functions (e.g POW(2,3) - power: 2*2*2)
+4. code_lib.cpp - several examples of embedded functions (e.g POW(2,3) - power: 2*2*2)
 5. code_run.cpp - byte-code interpreter (used SSE2 for parallel calculation of 4 formulas)
 
 To build and run:
