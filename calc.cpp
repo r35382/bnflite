@@ -109,7 +109,10 @@ int main(int argc, char* argv[])
 
     Expression = AddExpression; // Rule recursion created!
 
-    if (!clc.size()) clc = "2+2";
+    if (!clc.size()) {
+        clc = "2*3*4*5";
+        std::cout << "Run \"" << argv[0] << " " << clc << "\"\n";
+    }
     const char* tail = 0;
     Calc result;
 

@@ -139,11 +139,12 @@ The prior-art is rather  ""A BNF Parser in Forth"  http://www.bradrodriguez.com/
 And this lib is not related to `Boost::Spirit` in this context. Parser goes from  implementation of domain specific language here. This is expendable approach, for example, the user can inherit public lib classes to create own constructions to parse and perform simultaneously. 
 
 
-##Examples
+## Examples
 
 1. cmd.cpp - simple command line parser
 2. cfg.cpp - parser of restricted xml configuration
-3. calc.cpp - arithmetic calculator
+3. ini.cpp - parser of ini-files (custom parsing example to perform grammar spaces and comments)
+4. calc.cpp - arithmetic calculator
 
 >$ g++ calc.cpp
 

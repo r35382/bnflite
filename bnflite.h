@@ -27,6 +27,7 @@
 #ifndef BNFLITE_H
 #define BNFLITE_H
 
+#include <string.h>
 #include <string>
 #include <list>
 #include <vector>
@@ -88,7 +89,7 @@ public:
 protected: friend class Token; friend class Lexem; friend class Rule;
            friend class _And; friend class _Or; friend class Action;
     int level;
-    virtual int _analyze(_Tie& root, const char* text, const char** pstop = 0);
+    virtual int _analyze(_Tie& root, const char* text);
     virtual void _erase(int low, int up = 0)
         {   cntxV.erase(cntxV.begin() + low,  up? cntxV.begin() + up : cntxV.end() ); }
     virtual std::pair<void*, int> _pre_call(void* callback)
@@ -105,6 +106,10 @@ public:
         {};
     virtual ~_Base()
         {};
+    int Get_tail(const char** pstop)
+        {   const char* ptr = zero_parse(cntxV.back());
+            if (pstop) *pstop = ptr;
+            return *ptr? eError|eRest: 0;  }
     // primary interface to start parsing of text against constructed rules
     // there are 3 kins of parsing errors presented together with eError in returned status
     // 1) eBadRule, eBadLexem - means the rules tree is not properly built
@@ -112,7 +117,7 @@ public:
     // 3) *pstop != '\0' - not enough rules(or resources), stopped and pointed to unparsed text
     friend int Analyze(_Tie& root, const char* text, const char** pstop = 0);
     template <class U> friend int Analyze(_Tie& root, const char* text, const char** pstop, U& u);
-    template <class P> friend int Analyze(_Tie& root, const char* text, const char** pstop, P* parser);
+    template <class P> friend int Analyze(_Tie& root, const char* text, P& parser);
     // default parser procedure to skip special symbols
     virtual  const char* zero_parse(const char* ptr)
         {   for (char cc = *ptr; cc != 0; cc = *++ptr) {
@@ -141,7 +146,7 @@ protected:              friend class _Base;  friend class ExtParser;
     mutable std::vector<const _Tie*> use;
     mutable std::list<const _Tie*> usage;
     std::string name;
-    template<class T> static void _setname(T* t, const char * name)
+    template<class T> static void _setname(T* t, const char * name = 0)
         {   static int cnt = 0;
             if (name) { t->name = name; }
             else { t->name = typeid(*t).name() + _NAME_OFF;
@@ -276,26 +281,28 @@ class Token: public _Tie
                 return  *cc ? true : true|eEof; }
             return 0; }
 public:
-    Token(const char c) :_Tie(std::string(1,c))
-        {   Add(c, c); };    // create single char token
-    Token(int first, int last) :_Tie(std::string(1,first).append("-") += last)
-        {   Add(first, last); };    // create token by ASCII char diapason
+    Token(const char c) :_Tie(std::string(1, c))
+        {   Add(c, 0); };    // create single char token
+    Token(int fst, int lst) :_Tie(std::string(1, fst).append("-") += lst)
+        {   Add(fst, lst); };    // create token by ASCII charactes in range
     Token(const char *s) :_Tie(std::string(s))
         {   Add(s); }; // create token by C string sample
     Token(const Token& token) :_Tie(token), match(token.match)
         {};
     virtual ~Token()
         {   _safe_delete(this); }
-    void Add(int c)
-        {   match[(unsigned char)c] = 1; }
-    void Add(int first, int last)
-        {   for (int i = first; i <= last; i++) {
-                match[(unsigned char)i] = 1; } }
+    void Add(int fst, int lst = 0)  // add characters in range fst...lst;
+        {   switch (lst) { // lst == 0|1: add single | upper&lower case character(s)
+            case 1: if (fst >= 'A' && fst <= 'Z') match[fst - 'A' + 'a'] = 1;
+                    else if (fst >= 'a' && fst <= 'z') match[fst - 'a' + 'A'] = 1;
+            case 0: match[(unsigned char)fst] = 1; break;
+            default: for (int i = fst; i <= lst; i++) {
+                        match[(unsigned char)i] = 1; } } }
     void Add(const char *sample)
         {   while (*sample) {
                 match[(unsigned char)*sample++] = 1; } }
-    void Remove(int first, int last = 0)
-    {   for (int i = first; i <= (last?last:first); i++) {
+    void Remove(int fst, int lst = 0)
+        {   for (int i = fst; i <= (lst?lst:fst); i++) {
                 match[(unsigned char)i] = 0; } }
     void Remove(const char *sample)
         {   while (*sample) {
@@ -331,7 +338,7 @@ public:
 /* internal class to support conjunction constructions of BNF elements */
 class _And: public _Tie
 {
-protected: friend class _Tie;
+protected: friend class _Tie; friend class Lexem;
     _And(const _Tie& b1, const _Tie& b2):_Tie("")
         {   (name = b1.name).append("+") += b2.name; _clue(b1); _clue(b2); }
     explicit _And(const _And* rl) :_Tie(rl)
@@ -455,8 +462,19 @@ protected: friend class _Tie;
             parser->cntxV.resize(size);
             return stat; }
 public:
-    explicit Lexem(const char *name = 0) :_Tie()
-        {   _setname(this, name); }
+    Lexem(const char *literal, bool cs = 0) :_Tie()
+        {   int size = strlen(literal);
+            switch (size) {
+            case 1: this->operator=(Token(literal[0], cs));
+            case 0: break;
+            default: {
+                _And _and(Token(literal[0], cs), Token(literal[1], cs));
+                for (int i = 2; i < size; i++) {
+                    _and.operator+((const _Tie&)Token(literal[i], cs)); }
+                this->operator=(_and); } }
+            _setname(this, literal);  }
+    explicit Lexem() :_Tie()
+        {   _setname(this); }
     virtual ~Lexem()
         {   _safe_delete(this); }
     Lexem(const _Tie& link) :_Tie()
@@ -490,14 +508,14 @@ protected:  friend class _Tie; friend class _And;
             parser->_post_call(up);
             return stat; }
 public:
-    explicit Rule(const char *name = 0) :_Tie(), callback(0)
-        {   _setname(this, name); }
+    explicit Rule() :_Tie(), callback(0)
+        {   _setname(this); }
     virtual ~Rule()
         {   _safe_delete(this); }
     Rule(const _Tie& link) :_Tie(), callback(0)
         {   const Rule* rl = dynamic_cast<const Rule*>(&link);
             if (rl) { _clone(&link);  callback = rl->callback; name = rl->name; }
-            else { _clue(link);   callback = 0; _setname(this, 0);  } }
+            else { _clue(link);   callback = 0; _setname(this);  } }
     Rule& operator=(const _Tie& link)
         {   _clue(link); return *this; }
     Rule& operator=(const Rule& rule)
@@ -508,8 +526,8 @@ public:
 };
 
 /* friendly debug interface */
-#define LEXEM(lexem) Lexem lexem(#lexem); lexem
-#define RULE(rule) Rule rule(#rule); rule
+#define LEXEM(lexem) Lexem lexem; lexem.setName(#lexem); lexem
+#define RULE(rule) Rule rule; rule.setName(#rule); rule
 
 /* internal class to support repeat constructions of BNF elements */
 class _Cycle: public _Tie
@@ -556,15 +574,9 @@ inline _Cycle Iterate(int at_least, const Lexem& lexem, int total, int limit)
 inline _Cycle Series(int at_least, const Token& token, int total, int limit)
     {   return _Cycle(at_least, token, total, limit); }
 
-inline int _Base::_analyze(_Tie& root, const char* text, const char** pstop)
+inline int _Base::_analyze(_Tie& root, const char* text)
 {   cntxV.push_back(text); cntxV.push_back(text);
-    int stat = root._parse(this);
-    const char* ptr = zero_parse(cntxV.back());
-    if (*ptr != 0) {
-        stat |= eError|eRest; }
-    if (pstop) {
-        *pstop = ptr; }
-    return stat; }
+    return root._parse(this); }
 
 /* context class to support the second kind of callback */
 template <class U> class _Parser : public _Base
@@ -574,7 +586,7 @@ protected:
     unsigned int off;
     void _erase(int low, int up = 0)
         {   cntxV.erase(cntxV.begin() + low,  up? cntxV.begin() + up : cntxV.end() );
-            if(cntxU && level)
+            if (cntxU && level)
                 cntxU->erase(cntxU->begin() + (low - off) / 2,
                  up? cntxU->begin() + (up - off) / 2 : cntxU->end()); }
     virtual std::pair<void*, int> _pre_call(void* callback)
@@ -583,7 +595,7 @@ protected:
             off = callback? cntxV.size() : 0;
             return up; }
     virtual void  _post_call(std::pair<void*, int> up)
-        {   if(cntxU) {
+        {   if (cntxU) {
                 delete cntxU; }
             cntxU = (std::vector<U>*)up.first;
             off = up.second; }
@@ -604,6 +616,8 @@ public:
         {};
     virtual ~_Parser()
         {};
+    void Get_result(U& u)
+        { if (cntxU && cntxU->size()) u = cntxU->front(); }
     template <class W> friend Rule& Bind(Rule& rule, W (*callback)(std::vector<W>&));
 };
 
@@ -611,7 +625,7 @@ public:
 /* like: Interface<Foo> CallBack(std::vector<Interface<Foo>>& res); */
 /* The user has to specify own 'Data' abstract type to work with this template */
 /* The user also can create own class just supporting mandatory constructors */
-template <typename Data> struct Interface
+template <typename Data = bool> struct Interface
 {
     Data data;              //  user data element
     const char* text;       //  pointer to parsed text according to bound Rule
@@ -626,27 +640,33 @@ template <typename Data> struct Interface
     Interface(Data data, std::vector<Interface>& res, const char* name = "")
         :data(data), text(res.size()? res[0].text: ""),
           length(res.size()? res[res.size() - 1].text
-            - res[0].text + res[res.size() - 1].length : 0), name(0)
-        {}; // constructor to pass data from callback to library
+            - res[0].text + res[res.size() - 1].length : 0), name(name)
+        {}; // constructor to pass data from user's callback to library
+    Interface(const Interface& front, const Interface& back, const char* name = "")
+        : data(0), text(front.text), length(back.text - front.text + back.length), name(name)
+        {}; // constructor to pass data from user's callback to library
     Interface(): data(0), text(0), length(0), name(0)
         {}; // default constructor
     static Interface ByPass(std::vector<Interface>& res) // simplest user callback example
-        {   return res.size()? res[0]: Interface(); }   //   just to pass data to upper level
+        {   return res.size()? res[0]: Interface(); }   // just to pass data to upper level
 };
 
 
 /* Start parsing with supporting the first kind of callback only (faster) */
 inline int Analyze(_Tie& root, const char* text, const char** pstop)
-    {   _Base base; return base._analyze(root, text, pstop); }
+    {   _Base base; return base._analyze(root, text) | base.Get_tail(pstop); }
 
 /* Start parsing with supporting both kinds of callback */
 template <class U> inline int Analyze(_Tie& root, const char* text, const char** pstop, U& u)
-    {   std::vector<U> res;
-        _Parser<U> parser(&res);
-        int stat = parser._analyze(root, text, pstop);
-        if (res.size()) {
-            u = res[0]; }
-        return stat; }
+    {   std::vector<U> v; _Parser<U> parser(&v);
+        int stat = parser._analyze(root, text);
+        parser.Get_result(u);
+        return stat | parser.Get_tail(pstop); }
+
+/* Start custom parsing, use getPStop and getResult to obtain results */
+template <class P> inline int Analyze(_Tie& root, const char* text, P& parser)
+    {   return parser._analyze(root, text) | parser.Get_tail(0); }
+
 
 /* Create association between Rule and user's callback */
 template <class U> inline Rule& Bind(Rule& rule, U (*callback)(std::vector<U>&))
