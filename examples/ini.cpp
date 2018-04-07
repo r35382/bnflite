@@ -1,4 +1,20 @@
-//
+/*************************************************************************\
+*   Parser of configuration ini-files (based on BNFlite)                  *
+*   Copyright (c) 2017 by Alexander A. Semjonov.  ALL RIGHTS RESERVED.    *
+*                                                                         *
+*   This code is free software: you can redistribute it and/or modify it  *
+*   under the terms of the GNU Lesser General Public License as published *
+*   by the Free Software Foundation, either version 3 of the License,     *
+*   or (at your option) any later version.                                *
+*                                                                         *
+*   This program is distributed in the hope that it will be useful,       *
+*   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
+*   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
+*   GNU General Public License for more details.                          *
+*                                                                         *
+*   You should have received a copy of the GNU General Public License     *
+*   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
+\*************************************************************************/
 #pragma warning(disable: 4786)
 
 #include <vector>
@@ -9,7 +25,7 @@ using namespace bnf;
 using namespace std;
 
 
-/* ini file configuration:
+/* somple ini file configuration example:
 [section_1]
 var1=value1
 var2=value2
@@ -20,7 +36,7 @@ var2=value2
 */
 
 
-const char* ini = // this is example of ini-like configuration file
+const char* ini = // this sring represents some ini configuration file
 "; last modified 1 April 2001 by John Doe\n"
 " [ owner ]\n"
 "name=John Doe\n\n"
@@ -100,7 +116,6 @@ public:
 
 int main()
 {
-
     Token space(" \t");  // space and tab are grammar part in ini files
     Token delimiter(" \t\n\r");     // consider new lines as grammar part too
     Token name("_.,:(){}-#@&*|");  // start declare with special symbols
@@ -134,7 +149,6 @@ int main()
     else
         cout << "Parsing errors detected, status = " << hex << tst << endl
          << "stopped at: " << tail << endl;
-
 
     for (vector<struct Section>::iterator j = Ini.begin(); j != Ini.end(); ++j) {
         cout << endl << "Section " << j->name << " has " << (*j).value.size() << " values: "; 

@@ -140,15 +140,8 @@ and returns single Interface object as result. Root result is in `Analyze` call.
     Usr usr;
     int tst = bnf::Analyze(Identifier, "b[16];", &end, usr);
 
-
-## Debugging
-
-Each BNFlite object can be identified by name.
-This name is used mostly for debugging goals.
-The user can assign name in constructor or/and use setName/getName functions.
-
-
-## Optimization
+	
+## Optimizations for parser
 
 Generally, BNFlite utilizes simple top-down parser with backtracking.
 This parser may be not so good for complex grammar. However, the user has ways to make parsing smarter.
@@ -158,4 +151,52 @@ This parser may be not so good for complex grammar. However, the user has ways t
  - `Skip()` - Accept result but not production itself
 
 But most promising way is to inherit BNFline base classes to create own optimal constructions
+
+
+## Debugging of BNFLite Grammar
+
+Writing grammar by EDSL is unusual and the user does not have full understanding about the parser. If the Analyze call returns an error for the correct text, then the user always should take into consideration the possibility of grammar bugs.
+
+### Return code
+
+Return code from Analyze call can contain flags related to the grammar. For example, eBadRule, eBadLexem flags mean the tree of rules is not properly built.
+
+### Names and breakpoints
+
+The user can assign a name to the Rule. It can help to track recursive descent parser using Rule::_parse function. Debugger stack (history of function calls) can inform which Rule was applied and when. The user just needs to watch the this.name variable. It is not as difficult as it seems at first glance.
+
+### Grammar subsets
+
+Analyze function can be applied as unit test to any Rule representing subset of grammar.
+
+### Tracing
+
+The first kind of callback or function with prototype `bool foo(const char* lexem, size_t len)` can be used in BNFLite expressions for both reasons: to obtain temporary results and to inform about predicted errors.
+
+This function will print the parsed number:
+
+    static bool DebugNumber(const char* lexem, size_t len)
+    {    printf("The number is: %.*s;\n", len, lexem);    return true; }
+        /* … */
+    Rule number = number_ + DebugNumber;
+	
+The function should return true if result is correct.
+
+
+Let's assume the numbers with leading `+` are not allowed.
+
+    static bool ErrorPlusNumber(const char* lexem, size_t len)
+    { printf("The number %.*s with plus is not allowed\n", len, lexem); return false;}
+        /* … */
+    Lexem number_p = !Token("+") + int_ + !frac_ + !exp_ + ErrorPlusNumber;
+    Rule number = number_ | number_p;
+
+	The function should return false to inform the parser the result is not fit. C++11 constructions like below are also possible:
+
+    Rule number = number_ | [](const char* lexem, size_t len)
+    { return !printf("The number %.*s with plus is not allowed\n", len, lexem); }
+
+
+
+
 ...

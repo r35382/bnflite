@@ -1,5 +1,5 @@
 /****************************************************************************\
-*   Heqader of byte-code formula compiler (based on BNFLite)                 *
+*   h-header of byte-code formula compiler (based on BNFLite)                *
 *   Copyright (c) 2017  Alexander A. Semjonov <alexander.as0@mail.ru>        *
 *                                                                            *
 *   Permission to use, copy, modify, and distribute this software for any    *
@@ -81,8 +81,11 @@ struct FuncTable
     OpCode ret;
     const char* name;
     OpCode param[MAX_PARAM_NUM];
-    //void (*fun)();
+#if 0
+    void (*fun)();
+#else
     void *fun;
+#endif
     int num;
     int call_idx;
 };
