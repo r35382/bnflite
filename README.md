@@ -135,8 +135,10 @@ Otherwise not all BNFlite internal objects will be released (memory leaks expect
 
 ## Design Notes
 
+BNFlite is а class library. It is not related to the template 
+[Boost::Spirit](https://www.boost.org/doc/libs/1_64_0/libs/spirit/doc/html/index.html) library
+This is expendable approach, for example, the user can inherit public lib classes to create own constructions to parse and perform simultaneously. It fact, parser goes from  implementation of domain specific language here.  
 The prior-art is rather ["A BNF Parser in Forth"](http://www.bradrodriguez.com/papers/bnfparse.htm).
-And this lib is not related to `Boost::Spirit` in this context. Parser goes from  implementation of domain specific language here. This is expendable approach, for example, the user can inherit public lib classes to create own constructions to parse and perform simultaneously. 
 
 
 ## Examples
@@ -147,11 +149,8 @@ And this lib is not related to `Boost::Spirit` in this context. Parser goes from
 4. examples/calc.cpp - arithmetic calculator
 
 >$cd examples
-
 >$ g++ -I. -I.. calc.cpp
-
 >$ ./a.exe "2+(1+3)*2"
-
 >Result of 2+(1+3)*2 = 10
 
 Examples have been tested on several msvc and gcc compilers.
@@ -168,19 +167,14 @@ Examples have been tested on several msvc and gcc compilers.
 To build and run:
 
 >$ cd formula_compiler
-
 >$ g++ -O2 -march=pentium4 -std=c++14 -I.. main.cpp parser.cpp code_gen.cpp code_lib.cpp code_run.cpp
-
-> $ ./a.exe "2 + 3 *GetX()"  
-
+>$ ./a.exe "2 + 3 *GetX()"  
 > 5 byte-codes in: 2+3*GetX()
-
-> Byte-code: Int(2),Int(3),opCall<I>,opMul<I,I>,opAdd<I,I>;
-
+> Byte-code: Int(2),Int(3),opCall<1>,opMul<I,I>,opAdd<I,I>;
 > result = 2, 5, 8, 11;
 
 Note: The embedded function `GetX()` returns sequential number started from 0.
-So, the result is four parallel computations: 2 + 3 * 0; 2 + 3 * 1; 2 + 3 * 2; 2 + 3 * 3.
+So, the result is four parallel computations: `2 + 3 * 0; 2 + 3 * 1; 2 + 3 * 2; 2 + 3 * 3`.
 
 
 ## Contacts
