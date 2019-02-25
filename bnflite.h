@@ -3,25 +3,24 @@
 *   BNF Lite is a C++ template library for lightweight grammar parsers    *
 *   Copyright (c) 2017 by Alexander A. Semjonov.  ALL RIGHTS RESERVED.    *
 *                                                                         *
-*   This program is free software: you can redistribute it and/or modify  *
-*   it under the terms of the GNU General Public License as published by  *
-*   the Free Software Foundation, either version 3 of the License, or     *
-*   (at your option) any later version.                                   *
+*   Permission is hereby granted, free of charge, to any person           * 
+*   obtaining  a copy of this software and associated documentation       *
+*   files (the "Software"), to deal in the Software without restriction,  *
+*   including without limitation the rights to use, copy, modify, merge,  *
+*   publish, distribute, sublicense, and/or sell copies of the Software,  *
+*   and to permit persons to whom the Software is furnished to do so,     *
+*   subject to the following conditions:                                  *
 *                                                                         *
-*   This program is distributed in the hope that it will be useful,       *
-*   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
-*   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
-*   GNU General Public License for more details.                          *
+*   The above copyright notice and this permission notice shall be        *
+*   included in all copies or substantial portions of the Software.       *
 *                                                                         *
-*   You should have received a copy of the GNU General Public License     *
-*   along with this program.  If not, see <http://www.gnu.org/licenses/>. *
-*                                                                         *
-*   Recommendations for commercial use:                                   *
-*   Commercial application should have dedicated LGPL licensed cpp-file   *
-*   which exclusively includes GPL licensed "bnflit.h" file. In fact,     *
-*   the law does not care how this cpp-file file is linked to other       *
-*   binary applications. Just source code of this cpp-file has to be      *
-*   published in accordance with LGPL license.                            *
+*   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,       *
+*   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF    *
+*   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.*
+*   IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY  *
+*   CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,  *
+*   TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH         *
+*   THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.            *
 \*************************************************************************/
 
 #ifndef BNFLITE_H
@@ -287,6 +286,8 @@ public:
         {   Add(fst, lst); };    // create token by ASCII charactes in range
     Token(const char *s) :_Tie(std::string(s))
         {   Add(s); }; // create token by C string sample
+    Token(const char *s, const Token& token) :_Tie(std::string(s)), match(token.match)
+        {   Add(s); }; // create token by both C string sample and another token set
     Token(const Token& token) :_Tie(token), match(token.match)
         {};
     virtual ~Token()
@@ -311,6 +312,11 @@ public:
         {   for (unsigned i = next; i < match.size(); i++) {
                 if (match.test(i)) return i; }
             return 0; }
+    Token& Invert() // inverted tocken, to build construction to not match
+        {   for (int i = 1; i < 255; i++) {
+                match[(unsigned char)i] = !match[(unsigned char)i]; } 
+            return *this; }
+    
 };
 #if __cplusplus > 199711L
 inline Token operator""_T(const char* sample, size_t len)
@@ -345,7 +351,8 @@ protected: friend class _Tie; friend class Lexem;
         {};
     virtual int _parse(_Base* parser) const throw()
         {   int stat = 0; int save = 0; int size = parser->cntxV.size();
-            for (unsigned i = 0; i < use.size(); i++, stat &= ~(eSkip|eRet|eOk)) {
+            for (unsigned i = 0; i < use.size(); i++) {
+                stat &= ~(eSkip|eRet|eOk);
                 stat |= use[i]->_parse(parser);
                 if ((stat & (eOk|eError)) == eOk) {
                     if(save) {

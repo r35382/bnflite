@@ -159,6 +159,20 @@ The prior-art is rather ["A BNF Parser in Forth"](http://www.bradrodriguez.com/p
 Examples have been tested on several msvc and gcc compilers.
 
 
+## Unit Test ( C-like expression parser and calculator )
+
+1. c_xprs/utest.cpp - simple unit test
+2. c_xprs/c_xprs.h - parser of C-like expressions
+
+>$cd c_xprs
+
+>$ g++ -I. -I.. utest.cpp
+
+>$ ./a.exe 
+
+Output result of several C-like expressions   
+
+
 ## Demo (simplest formula compiler & bite-code interpreter)
 
 * formula_compiler/main.cpp - starter of byte-code formula compiler and interpreter
@@ -167,7 +181,7 @@ Examples have been tested on several msvc and gcc compilers.
 * formula_compiler/code_lib.cpp - several examples of embedded functions (e.g POW(2,3) - power: 2*2*2)
 * formula_compiler/code_run.cpp - byte-code interpreter (used SSE2 for parallel calculation of 4 formulas)
 
-To build and run:
+To build and run (remove option `-march=pentium4` if it needed for arm or 64 build):
 
 >$ cd formula_compiler
 
@@ -211,35 +225,7 @@ through WebMoney WMID: 047419562122
 
 ## License
 
- - GPL
+ - MIT
  
-#### License Note after some feedbacks
-
-This work has been done to contribute to open source community. 
-Commercial usage is possible on the manner of proprietary Linux drivers.
-
-The user should follow modular design and have grammar part developed like this:
-
-        /-------------------\          /--------------------\
-    /---+--------\  Gramma  |          |      Commercial    |
-    |BNFlite(GPL)|  Module  | <======> |     Application    |
-    \---+--------/  (LGPL)  |          | (proprietary code) |
-        \-------------------/          \--------------------/
-
-But NOT like this:
-		
-                        /--------------------\		
-        /-------------------\   Commercial   |    
-    /---+--------\  Gramma  |   Application  | 
-    |BNFlite(GPL)|  Module  |     (but not   |
-    \---+--------/  (LGPL)  |    proprietary | 
-        \-------------------/      code!)    |
-                        \--------------------/		
-		
-Practically it means that user need to have all parser stuff in the separate module and other code should work with internal representation of parsed data. It is good design and definitely not a burden for the user. Best way is to include GPL `bnflite.h` only once to LGPL licensed `myparser.cpp`. The law does not care how `myparser.cpp` will be linked with other application code, it just obligates the user to distribute `myparser.cpp` sources together with application binares. This is the way for the user to contribute to open source community too!
-   
-If it is not an option I will publish MIT or BSD licensed `bnflite.h` specially for your project. 
-It is free, just send me one line description of your project to include into the header.
-
 
 
