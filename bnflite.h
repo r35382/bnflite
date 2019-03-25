@@ -3,7 +3,7 @@
 *   BNF Lite is a C++ template library for lightweight grammar parsers    *
 *   Copyright (c) 2017 by Alexander A. Semjonov.  ALL RIGHTS RESERVED.    *
 *                                                                         *
-*   Permission is hereby granted, free of charge, to any person           * 
+*   Permission is hereby granted, free of charge, to any person           *
 *   obtaining  a copy of this software and associated documentation       *
 *   files (the "Software"), to deal in the Software without restriction,  *
 *   including without limitation the rights to use, copy, modify, merge,  *
@@ -38,7 +38,6 @@ namespace bnf
 {
 // BNF (Backus-Naur form) is a notation for describing syntax of computer languages
 // BNF Lite is the source code template library implementing the way to support BNF specifications
-//
 // BNF Terms:
 // * Production rule is formal BNF expression which is a conjunction of a series
 //   of more concrete rules:
@@ -47,33 +46,20 @@ namespace bnf
 //      <digit> ::= <0> | <1> | <2> | <3> | <4> | <5> | <6> | <7> | <8> | <9>
 //      <number> ::= <digit> | <digit> <number>
 //      where the number is just a digit or another number with one more digit;
-
-// BNF Lite Terms:
-// * Token is a terminal production;
-// * Lexem is a lexical production;
-// * Rule is used here as synonym of syntax production
-//
-// BNF Lite Usage:
-// Above BNF example can be presented in C++ friendly notation:
+// Now this example can be presented in C++ friendly notation:
 //      Lexem Digit = Token("0") | "1"  | "2" | "4" | "5" | "6" | "7" | "8" | "9";
-//      LEXEM(Number) = Digit | Digit + Number;
-// These both expressions are executable due to this "bnflite.h" source code library
-// which supports "Token", "Lexem" and "Rule" classes with overloaded "+" and "|" operators.
-// then, e.g. bnf::Analyze(Number, "532" ) can be called with success.
-// BNF Lite library supports two kind of callback:
-//  - The first kind of callback is treated as bnf element
-//      int MyNumber(const char* number_string, size_t length_of_number) ...
-//      Lexem Number = Iterate(1, Digit) + MyNumber;
-//  - The second kind of callback is bound to 'Rule' element
-//      Interface<UserData> CallBack(std::vector<Interface<UserData>>& res) ...
-//      Bind(Rule, CallBack);
-
+//      RULE(Number) = Digit | Digit + Number;
+// where:
+//      * Token is a terminal production;
+//      * Lexem (or LEXEM) is a lexical production;
+//      * Rule (or RULE) is used here as synonym of syntax production
+// To parse any number (e.g. 532) it is just enough to call the bnf::Analyze(Number, "532")
 
 enum Limits {   maxCharNum = 256, maxLexemLength = 1024, maxIterate = 0x4096
             };
 enum Status {   eNone = 0, eErr = 0, eOk = 1,
-                eRet = 0x8, e1st = 0x10, eSkip = 0x20, eCatch = 0x40, eTry = 0x80,
-                eRest = 0x0100, eNull = 0x0200, eOver = 0x0400, eEof = 0x0800,
+                eRet = 0x8, e1st = 0x10, eSkip = 0x20, eTry = 0x40, eNull = 0x80,
+                eRest = 0x0100, eNoData = 0x0200, eOver = 0x0400, eEof = 0x0800,
                 eBadRule = 0x1000, eBadLexem = 0x2000, eSyntax = 0x4000,
                 eError = ((~(unsigned int)0) >> 1) + 1
             };
@@ -84,11 +70,12 @@ class _Tie; class _And; class _Or; class _Cycle;
 class _Base // base parser class
 {
 public:
-    std::vector<const char*> cntxV;
+    std::vector<const char*> cntxV; // public for internal extensions
 protected: friend class Token; friend class Lexem; friend class Rule;
            friend class _And; friend class _Or; friend class Action;
     int level;
-    virtual int _analyze(_Tie& root, const char* text);
+    const char* (*zero_parse)(const char*);
+    int (*catch_error)(const char* ptr);
     virtual void _erase(int low, int up = 0)
         {   cntxV.erase(cntxV.begin() + low,  up? cntxV.begin() + up : cntxV.end() ); }
     virtual std::pair<void*, int> _pre_call(void* callback)
@@ -101,31 +88,20 @@ protected: friend class Token; friend class Lexem; friend class Rule;
     virtual void _stub_call(const char* begin, const char* end,  const char* name)
         {};
 public:
-    _Base(): level(1)
+    int _analyze(_Tie& root, const char* text, size_t*);
+    _Base(const char* (*pre)(const char*)): level(1), zero_parse(pre?pre:base_parser), catch_error(base_error)
         {};
     virtual ~_Base()
         {};
-    int Get_tail(const char** pstop)
-        {   const char* ptr = zero_parse(cntxV.back());
-            if (pstop) *pstop = ptr;
-            return *ptr? eError|eRest: 0;  }
-    // primary interface to start parsing of text against constructed rules
-    // there are 3 kins of parsing errors presented together with eError in returned status
-    // 1) eBadRule, eBadLexem - means the rules tree is not properly built
-    // 2) eEof - not enough text for applied rules
-    // 3) *pstop != '\0' - not enough rules(or resources), stopped and pointed to unparsed text
-    friend int Analyze(_Tie& root, const char* text, const char** pstop = 0);
-    template <class U> friend int Analyze(_Tie& root, const char* text, const char** pstop, U& u);
-    template <class P> friend int Analyze(_Tie& root, const char* text, P& parser);
-    // default parser procedure to skip special symbols
-    virtual  const char* zero_parse(const char* ptr)
+    // default pre-parser procedure to skip special symbols
+    static const char* base_parser(const char* ptr)
         {   for (char cc = *ptr; cc != 0; cc = *++ptr) {
                 if (cc != ' ' && cc !='\t' && cc != '\n' && cc != '\r') {
                     break; } }
             return ptr; }
-    // attempt to catch syntax errors (examples available in professional set)
-    virtual int Catch()
-        {   return 0; }
+    // attempt to catch general syntax error
+    static int base_error(const char* ptr)
+        { return eSyntax|eError; }
 };
 
 #if !defined(_MSC_VER)
@@ -141,6 +117,8 @@ class _Tie
 protected:              friend class _Base;  friend class ExtParser;
     friend class _And;  friend class _Or;   friend class _Cycle;
     friend class Token; friend class Lexem; friend class Rule;
+    friend int _Base::_analyze(_Tie& root, const char* text, size_t*);
+
     bool inner;
     mutable std::vector<const _Tie*> use;
     mutable std::list<const _Tie*> usage;
@@ -222,8 +200,6 @@ public:
     _Cycle operator*(); // ABNF case *<element> (from 0 to infinity)
     _Cycle operator!(); // ABNF case <0>.<1>*<element> or <1><element> (at least one)
     // Note: more readable to use Series, Iterate, Repeat statements correspondingly
-    template <class U>
-    friend int Analyze(_Tie& root, const char* text, const char** pstop, U& u);
 };
 
 /* implementation of parsing control statements */
@@ -314,9 +290,9 @@ public:
             return 0; }
     Token& Invert() // inverted tocken, to build construction to not match
         {   for (int i = 1; i < 255; i++) {
-                match[(unsigned char)i] = !match[(unsigned char)i]; } 
+                match[(unsigned char)i] = !match[(unsigned char)i]; }
             return *this; }
-    
+
 };
 #if __cplusplus > 199711L
 inline Token operator""_T(const char* sample, size_t len)
@@ -326,7 +302,7 @@ inline Token operator""_T(const char* sample, size_t len)
 /* internal standalone callback wrapper class */
 class Action: public _Tie
 {
-    bool (*action)(const char* lexem, size_t len);
+    int (*action)(const char* lexem, size_t len);
     Action(_Tie&);
 protected:  friend class _Tie;
     explicit Action(const Action* a) :_Tie(a), action(a->action)
@@ -335,8 +311,10 @@ protected:  friend class _Tie;
         {   std::vector<const char*>::reverse_iterator itr = parser->cntxV.rbegin() + 1;
             return (*action)(*itr, parser->cntxV.back() - *itr); }
 public:
-    Action(bool (*action)(const char* lexem, size_t len), const char *name = "")
+    Action(int (*action)(const char* lexem, size_t len), const char *name = "")
         :_Tie(name), action(action) {};
+    Action(bool (*action)(const char* lexem, size_t len), const char *name = "")
+        :_Tie(name), action(reinterpret_cast<int(*)(const char*, size_t)>(action)) {};
     virtual ~Action()
         {   _safe_delete(this); }
 };
@@ -362,7 +340,7 @@ protected: friend class _Tie; friend class Lexem;
                         save = parser->cntxV.size(); }
                 } else {
                     if (parser->level && (stat & eTry) && !(stat & eError) && !save) {
-                        stat |= parser->Catch(); }
+                        stat |= parser->catch_error(""); }
                     parser->_erase(size);
                     return (stat & (eEof|eOver)? eError : eErr) | (stat & ~(eTry|eSkip|eOk)); }}
             return (stat & eTry? eRet : eNone) | eOk | (stat & ~(eTry|eSkip));   }
@@ -581,10 +559,6 @@ inline _Cycle Iterate(int at_least, const Lexem& lexem, int total, int limit)
 inline _Cycle Series(int at_least, const Token& token, int total, int limit)
     {   return _Cycle(at_least, token, total, limit); }
 
-inline int _Base::_analyze(_Tie& root, const char* text)
-{   cntxV.push_back(text); cntxV.push_back(text);
-    return root._parse(this); }
-
 /* context class to support the second kind of callback */
 template <class U> class _Parser : public _Base
 {
@@ -619,18 +593,19 @@ protected:
         {   if (cntxU) {
                 cntxU->push_back(U(begin, end - begin, name)); } }
 public:
-    _Parser(std::vector<U>* res = 0) :cntxU(res), off(0)
+    _Parser(const char* (*f)(const char*), std::vector<U>* v) :_Base(f), cntxU(v), off(0)
         {};
     virtual ~_Parser()
         {};
-    void Get_result(U& u)
-        { if (cntxU && cntxU->size()) u = cntxU->front(); }
+    int _get_result(U& u)
+        {   if (cntxU && cntxU->size()) {u.data = cntxU->front().data; return 0;}
+                else return eNull; }
     template <class W> friend Rule& Bind(Rule& rule, W (*callback)(std::vector<W>&));
 };
 
 /* User interface template to support the second kind of callback */
+/* The user need to specify own 'Foo' abstract type to develop own callbaks */
 /* like: Interface<Foo> CallBack(std::vector<Interface<Foo>>& res); */
-/* The user has to specify own 'Data' abstract type to work with this template */
 /* The user also can create own class just supporting mandatory constructors */
 template <typename Data = bool> struct Interface
 {
@@ -656,23 +631,33 @@ template <typename Data = bool> struct Interface
         {}; // default constructor
     static Interface ByPass(std::vector<Interface>& res) // simplest user callback example
         {   return res.size()? res[0]: Interface(); }   // just to pass data to upper level
+    int _get_pstop(const char** pstop)
+        {   if (pstop) *pstop = text + length;
+            return length ? eNone : eNull; }
 };
 
 
-/* Start parsing with supporting the first kind of callback only (faster) */
-inline int Analyze(_Tie& root, const char* text, const char** pstop)
-    {   _Base base; return base._analyze(root, text) | base.Get_tail(pstop); }
+inline int _Base::_analyze(_Tie& root, const char* text, size_t* plen)
+{   cntxV.push_back(text); cntxV.push_back(text);
+    int stat = root._parse(this);
+    const char* ptr = zero_parse(cntxV.back());
+    if (plen) *plen = ptr - text;
+    return stat | (*ptr? eError|eRest: 0);  }
 
-/* Start parsing with supporting both kinds of callback */
-template <class U> inline int Analyze(_Tie& root, const char* text, const char** pstop, U& u)
-    {   std::vector<U> v; _Parser<U> parser(&v);
-        int stat = parser._analyze(root, text);
-        parser.Get_result(u);
-        return stat | parser.Get_tail(pstop); }
+/* Private parsing interface */
+template <class U> inline int _Analyze(_Tie& root, U& u, const char* (*pre_parse)(const char*))
+    {   if (typeid(U) == typeid(Interface<>)) {
+                    _Base base(pre_parse); return base._analyze(root, u.text, &u.length);
+        } else {    std::vector<U> v; _Parser<U> parser(pre_parse, &v);
+                    return parser._analyze(root, u.text, &u.length) | parser._get_result(u); }  }
 
-/* Start custom parsing, use getPStop and getResult to obtain results */
-template <class P> inline int Analyze(_Tie& root, const char* text, P& parser)
-    {   return parser._analyze(root, text) | parser.Get_tail(0); }
+/* Primary interface set to start parsing of text against constructed rules */
+template <class U> inline int Analyze(_Tie& root, const char* text, const char** pstop, U& u, const char* (*pre_parse)(const char*) = 0)
+    {   u.text = text; return _Analyze(root, u, pre_parse) | u._get_pstop(pstop); }
+template <class U> inline int Analyze(_Tie& root, const char* text, U& u, const char* (*pre_parse)(const char*) = 0)
+    {   u.text = text; return _Analyze(root, u, pre_parse) | u._get_pstop(0); }
+inline int Analyze(_Tie& root, const char* text, const char** pstop = 0, const char* (*pre_parse)(const char*) = 0)
+    {   Interface<> u; u.text = text;  return _Analyze(root, u, pre_parse) | u._get_pstop(pstop); }
 
 
 /* Create association between Rule and user's callback */

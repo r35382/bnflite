@@ -24,7 +24,9 @@
 
 C_Xprs gramma;
 
+#define TEST_FORCE_ERR(a) test_c_xprs(#a, -1); 
 #define TEST_C_XPRS(a) test_c_xprs(#a, (a)); 
+
 static void test_c_xprs(const char *expression, int test_result)
 {
     int value;
@@ -38,6 +40,8 @@ static void test_c_xprs(const char *expression, int test_result)
 
 int main()
 {
+	TEST_FORCE_ERR(1 + variable =); 
+
 
     TEST_C_XPRS(0XFFFf);
 
@@ -55,7 +59,7 @@ int main()
     TEST_C_XPRS(2+3-0x4+5);
     TEST_C_XPRS(((5+1)*4)+1);
 
-    TEST_C_XPRS( 1 + (0&&3) + (3|4) * (1-1<0?5:6)-4<<8-7 );
+    TEST_C_XPRS( 1 + (0&&3) + (3|4) * (1-1<0?5:6)-4<<8-7 );  
 
     return 0;
 }

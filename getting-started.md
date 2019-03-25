@@ -33,10 +33,13 @@ Execution of this C++ code produces an internal date representation for further 
 
 ## class Token
 
-In the previous example the terminal is a symbol specified as "Token". 
+For the previous example the terminal symbol "Token" can be specified like this:
 
     Token Digit("0123456789"); // more compact and optimal than above
-    Token Letter('0', '9');   // one more compact form
+    Token Digit('0', '9');   // one more compact form
+	
+One more way to create Token:	
+	
 	Token NotPoint(1,127); NotPoint.Remove('.');  // all chars except point 
 		
 ## class Lexem	
@@ -52,12 +55,14 @@ Lexical productions are introduced as "Lexem" object:
 
 The C++ '=' operator is used as BNF '::='. 
 The '+' operator implements sequential concatenation. 
-The '|' operator implements 'or' relation. The Null() object return positive production with zero length. By default the parser tests all alternatives productions and selects one with longest input.
+The '|' operator implements 'or' relation. The Null() object return positive production with zero length. 
+By default the parser tests all alternatives productions and selects one with longest input.
 The "Identifier" can not started with digit. But it can be one letter.
 
 ## Repeatable Constructions	
 
-In most later BNF-like metalanguages the BNF recursive repeat construct is replaced by a sequence mechanism. BNFlite offers to use the following functions:
+In most later BNF-like metalanguages the BNF recursive repeat construct is replaced by a sequence mechanism. 
+BNFlite offers to use the following functions:
 
     Series(a, token, b);
     Iterate(a, lexem, b);
@@ -68,7 +73,7 @@ So we can use:
     Lexem Number = Series(1, Digit);  // 1 means at least one digit 
     Lexem Identifier = Letter + Iterate(0, LetterOrDigit); // 0 - means zero-or-one ore more
 
-Such constructions are more readable and work faster.
+Such constructions are both more readable and faster.
 Additionally BNFlite supports Advanced BNF style introducing several overloaded operators to support repeatable constructions.
 
 ## class Rule	
@@ -126,8 +131,8 @@ Intermediate parsing results can be obtain by callbacks. Two kinds of callback a
 The user callback can return 1 for success or 0 to fail parsing manually.
 	
  - Each Rule can be bound with callback to implement user needs
-The user needs to define own working type for his data. This type is used for specialisation 
-of BNFlite Interface template class to pass data between Rules. 
+The user needs to define own working type for his data. This type is used for specialization 
+of BNFlite `Interface` template class to pass data between Rules. 
 
     typedef Interface<user_type> Usr;
     Usr SizeNumber(std::vector<Usr>& usr) 
@@ -138,28 +143,53 @@ Rule element callback receives vector of Interface objects from lower rules
 and returns single Interface object as result. Root result is in `Analyze` call.
 
     Usr usr;
-    int tst = bnf::Analyze(Identifier, "b[16];", &end, usr);
+    int tst = bnf::Analyze(Identifier, "b[16];", usr);
+
+## Parameters for `Analize` API set
+
+ - `root` - top Rule for parsing 
+ - `text` - text to be parsed 
+ - `pstop` - the pointer where parser stops  (`*pstop != '\0'` - not enough rules or resources)
+ - `u` - top variable of Interface template structure (see the second kind of callbacks)
+ - `u.text` - text to be parsed (copy of `text`)
+ - `u.length` - final length of parsed data to be returned to the user
+ - `u.data` - final user data to be returned to the user
+  
+## Return Value 
+
+`Analize` returns negative value in case of parsing error. 
+Bit fields of returned value can provide more information about parser behavior
 
 	
 ## Optimizations for parser
 
 Generally, BNFlite utilizes simple top-down parser with backtracking.
-This parser may be not so good for complex grammar. However, the user has ways to make parsing smarter.
+This parser may be not so good for complex grammar. 
+However, the user has ways to make parsing smarter.
 
  - `Return()` - Choose current production
  - `AcceptFirst()` - Choose first appropriate production
  - `Skip()` - Accept result but not production itself
 
-But most promising way is to inherit BNFline base classes to create own optimal constructions
+The most promising way is to inherit BNFline base classes to create own optimal constructions
 
 
 ## Debugging of BNFLite Grammar
 
-Writing grammar by EDSL is unusual and the user does not have full understanding about the parser. If the Analyze call returns an error for the correct text, then the user always should take into consideration the possibility of grammar bugs.
+Writing grammar by EDSL is unusual and the user does not have full understanding about the parser. 
+If the Analyze call returns an error for the correct text, 
+then the user always should take into consideration the possibility of grammar bugs.
 
 ### Return code
 
-Return code from Analyze call can contain flags related to the grammar. For example, eBadRule, eBadLexem flags mean the tree of rules is not properly built.
+Return code from `Analyze` call can contain flags related to the grammar. 
+ - `eBadRule`, `eBadLexem` - means the rules tree is not properly built
+ - `eEof` - "unexpected end of file" for most cases it is not enough text for applied rules
+ - `eSyntax` - syntax error (controlled by the user)
+ - `eOver` - too much data for cycle rules  
+ - `eRest` - not all text has been parsed
+ - `eNull` - no result
+
 
 ### Names and breakpoints
 

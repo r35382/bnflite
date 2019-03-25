@@ -81,12 +81,12 @@ private:
     Rule MultiplicativeXprs, MultiplicativeXprs0; 
     Rule ShiftXprs, ShiftXprs0; 
     Rule EqualityXprs, EqualityXprs0; 
-    Rule BitwiseAndXprs, BitwiseAndXprs0; 
     Rule RelationalXprs, RelationalXprs0; 
+    Rule BitwiseAndXprs, BitwiseAndXprs0; 
     Rule BitwiseOrXprs, BitwiseOrXprs0; 
-    Rule ExclusiveOrXprs, ExclusiveOrXprs0; 
-    Rule LogicalBitwiseAndXprs, LogicalBitwiseAndXprs0; 
+    Rule LogicalAndXprs, LogicalAndXprs0; 
     Rule LogicalOrXprs, LogicalOrXprs0; 
+    Rule ExclusiveOrXprs, ExclusiveOrXprs0; 
     Rule ConditionalXprs,ConditionalXprs0; 
 
     Rule UnaryXprs; 
@@ -97,7 +97,7 @@ private:
     static bool getNumber(const char* lexem, size_t len);
     static bool dbgPrint(const char* lexem, size_t len);
     static bool printMsg(const char* lexem, size_t len);
-    static bool SyntaxError(const char* lexem, size_t len);
+    static int syntaxError(const char* lexem, size_t len);
     static bool numberAction(const char* lexem, size_t len);
     static bool buildBinaryAction(const char* lexem, size_t len);
     static bool buildUnaryAction(const char* lexem, size_t len);
@@ -130,7 +130,7 @@ bool C_Xprs::getHexNumber(const char* lexem, size_t len)
 {   
     int i = 0;
     lastNumber = 0;
-    if ( len > 2 && lexem[0] == '0' && (lexem[1] == 'X' || lexem[1] == 'x')) 
+    if ( len > 1 && lexem[0] == '0' && (lexem[1] == 'X' || lexem[1] == 'x')) 
         i += 2;
     for (; i < len; i++) {
         if (lexem[i] >= '0' && lexem[i] <= '9') {
@@ -168,10 +168,10 @@ bool C_Xprs::printMsg(const char* lexem, size_t len)
 }
 
 
-bool C_Xprs::SyntaxError(const char* lexem, size_t len)
+int C_Xprs::syntaxError(const char* lexem, size_t len)
 {
-    printf("Syntax Error lexem: %.*s;\n", len, lexem);
-    return false;
+    printf("forced syntax error for: %.*s;\n", len, lexem);
+    return eError;
 }
 
 
@@ -221,7 +221,7 @@ bool C_Xprs::buildUnaryAction(const char* lexem, size_t len)
 
 bool C_Xprs::unaryAction(const char* lexem, size_t len)
 {
-    if ((lexem[0] == '+' && lexem[1] == '+') || (lexem[0] == '-' && lexem[1] == '-')) {
+    if (len > 1 && ((lexem[0] == '+' && lexem[1] == '+') || (lexem[0] == '-' && lexem[1] == '-'))) {
         return false; // not supported operations
     }
     XprsTree* node = new XprsTree();
@@ -386,7 +386,7 @@ void C_Xprs::GrammaInit()
 
     PrimaryXprs =   Number + Try() + numberAction + PostfixXprs + Return() | 
                     "(" + Try() + MainXprs + ")" + Return() |
-                    SyntaxError;
+                    Action(syntaxError);
 
     UnaryXprs =
             Lexem("++") + Try() + unaryAction + PrimaryXprs + buildUnaryAction + Return() |
@@ -425,11 +425,9 @@ void C_Xprs::GrammaInit()
         Lexem("!=") + Try() + binaryAction + EqualityXprs + buildBinaryAction;
     EqualityXprs = RelationalXprs + Repeat(0, EqualityXprs0); 
 
-
     Lexem NotLogicalAnd =  Token("&") + Token("&").Invert();
     BitwiseAndXprs0 = Skip() + NotLogicalAnd + Token("&") + Try() + binaryAction + EqualityXprs  + buildBinaryAction;
     BitwiseAndXprs = EqualityXprs + Repeat(0, BitwiseAndXprs0);
-
 
     ExclusiveOrXprs0 = "^" + Try() + binaryAction + BitwiseAndXprs + buildBinaryAction;
     ExclusiveOrXprs = BitwiseAndXprs + Repeat(0, ExclusiveOrXprs0);
@@ -438,13 +436,13 @@ void C_Xprs::GrammaInit()
     BitwiseOrXprs0 = Skip() + NotLogicalOr + "|" + Try() + binaryAction + ExclusiveOrXprs + buildBinaryAction;
     BitwiseOrXprs = ExclusiveOrXprs + Repeat(0, BitwiseOrXprs0);
 
-    /* Note " The construction Token("&") + Token("&") and Lexem("&&") look the same
-       from language notation point of view, but callbuck bachavior is different */
-    LogicalBitwiseAndXprs0 = Lexem("&&") + Try() + binaryAction + BitwiseOrXprs + buildBinaryAction;
-    LogicalBitwiseAndXprs = BitwiseOrXprs + Repeat(0, LogicalBitwiseAndXprs0);
+    /* Note Token("&") + Token("&") and Lexem("&&") constructions are the same
+       from the language notation point of view, but callbuck bachavior is different */
+    LogicalAndXprs0 = Lexem("&&") + Try() + binaryAction + BitwiseOrXprs + buildBinaryAction;
+    LogicalAndXprs = BitwiseOrXprs + Repeat(0, LogicalAndXprs0);
 
-    LogicalOrXprs0 = Lexem("||") + Try() + binaryAction + LogicalBitwiseAndXprs + buildBinaryAction;
-    LogicalOrXprs = LogicalBitwiseAndXprs + Repeat(0, LogicalOrXprs0);
+    LogicalOrXprs0 = Lexem("||") + Try() + binaryAction + LogicalAndXprs + buildBinaryAction;
+    LogicalOrXprs = LogicalAndXprs + Repeat(0, LogicalOrXprs0);
 
     ConditionalXprs0 =   "?" + Try() + ifAction + MainXprs + 
                          ":" + thenAction + ConditionalXprs + 
@@ -456,12 +454,33 @@ void C_Xprs::GrammaInit()
     
 }
 
+/* Start custom parsing, use getPStop and getResult to obtain results */
+template <class P, class U> inline int Analyze(_Tie& root, const char* text, _Base* parser)
+    {   return parser._analyze(root, text) | parser.Get_tail(0); }
+
+
+
+int catch_syntax_error(const char* ptr)
+{   
+    printf("caught syntax error for: %.80s;\n", ptr);
+    return eSyntax;
+}
+
 
 bool C_Xprs::ParseExpression(const char *expression)
 {
     int tst = Analyze(MainXprs, expression);
     if (tst < 0) {
-        std::cout << "Expression not OK," << "Err: " << std::hex << tst;
+        std::cout << "Expression not OK," << "Err: " << std::hex   
+            << (tst&eOk?"eOk":"eErr")
+            << (tst&eRest?", eRest":"")
+            << (tst&eOver?", eOver":"")
+            << (tst&eEof?", eEof":"")
+            << (tst&eBadRule?", eBadRule":"")
+            << (tst&eBadLexem?", eBadLexem":"")
+            << (tst&eSyntax?", eSyntax":"")
+            << (tst&eError?", eError":"") 
+        << std::endl;
         return false;
     }
     return true;
@@ -480,7 +499,3 @@ bool C_Xprs::Evaluate(const char *expression, int& result)
     }
     return ok;
 }
-
-
-
-

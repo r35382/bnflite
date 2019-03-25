@@ -2,28 +2,27 @@
 ## About
 
 BNFLite is a C++ template library for lightweight flexible grammar parsers.
-It is intended to parse: 
+BNFLite offers creative approach when the developer can specify 
+a language for further parsing directly in the C++ code.
+Moreover, such "specifications" are executable now!
+
+## Purpose
+
+BNFLite is intended to parse: 
  - command line arguments; 
  - small configuration files; 
  - output of different tools
 
 
-## Purpose
+## Preface
 
-Some time ago author dealt with the "ffmpeg" tool which was invented to integrate together a lot of parametrized video/audio codecs.
-The tool have a comprehensive command line with thousands combinations of options. Examples are poor,
-parameters sometime are ambiguous, the command line is not compatible from version to version.
-Formal BNF specs of the command line language could help. However, for projects with limited budget
-a process solution does not exist. The tool still is in progress and it is really difficult
-to support any requirements document on-time.
-But without any formal descriptions world users have a really problems reporting something that not work.
-A potential defect can be either the coding bug or the requirement issue when some functionality
-can not be achieved(or really difficult to achieve).
-If submitted issue is not properly addressed it will be never performed and corrected!
-
-BNFLite offers another approach when developer can specify
-a language of command line parameters directly in the code.
-Moreover, the "specifications" are executable now!
+Once the author participated in the development of some tool which was invented to integrate together a lot of proprietary modules.
+There were the command line with thousands combinations of options, poor examples, ambiguous docs. 
+So the command line was not compatible from version to version. 
+Up-to-date formal BNF specs of the command line language could help but not for projects with limited budget.
+Starting YACC, there is a solution to support some extra executable code describing language specifics. 
+As a rule, usage of such means is too heavy because it is extra stuff and it is not BNF.
+BNFLite does not have such drawbacks! 
 
 
 ## Usage
@@ -219,13 +218,13 @@ through WebMoney WMID: 047419562122
 
 ## Roadmap
 
-- Productize several approaches to catch syntax errors by means of this library
-- Generate fastest C code parser from C++ BNF lite statements (..looking for customer)
+- Productize several approaches to catch syntax errors by means of this library (done in unit test)
+- Generate fastest C code parser from C++ BNFlite statements (..looking for customer)
+- Support wide characters (several approaches, need customer reqs, ..looking for customer)
+- Support releasing of ringed Rules (see "Restrictions for Recursion"), in fact the code exists but it is not "lite"
 
 
 ## License
 
  - MIT
- 
-
 

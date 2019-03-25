@@ -99,19 +99,15 @@ static void Bind(Rule& section, Rule& entry)
     Bind(entry, DoValue);
 }
 
-// example of custom parser
-class ini_parser : public _Parser<Gen>
-{
-public:
-    const char* zero_parse(const char* ptr)
-    {   // skip ini file comments
-        if (*ptr ==';' ||  *ptr =='#')
-            while (*ptr != 0)
-                if( *ptr++ == '\n')
-                    break;
-        return ptr;
-    }
-};
+// example of custom pre-parser
+static const char* ini_zero_parse(const char* ptr)
+{   // skip ini file comments
+    if (*ptr ==';' ||  *ptr =='#')
+        while (*ptr != 0)
+            if( *ptr++ == '\n')
+                break;
+    return ptr;
+}
 
 
 int main()
@@ -119,9 +115,9 @@ int main()
     Token space(" \t");  // space and tab are grammar part in ini files
     Token delimiter(" \t\n\r");     // consider new lines as grammar part too
     Token name("_.,:(){}-#@&*|");  // start declare with special symbols
-	name.Add('0', '9'); // appended numeric part
-	name.Add('a', 'z'); // appended alphabetic lowercase part
-	name.Add('A', 'Z'); // appended alphabetic capital part
+    name.Add('0', '9'); // appended numeric part
+    name.Add('a', 'z'); // appended alphabetic lowercase part
+    name.Add('A', 'Z'); // appended alphabetic capital part
     Token value(1,255); value.Remove("\n");
 
     Lexem Name = 1*name;
@@ -138,17 +134,14 @@ int main()
 
     Bind(Section, Item);
 
-    const char* tail = "";
-    ini_parser myParser;
+    Gen gen; // this is Interface object
 
-
-    int tst = Analyze(Inidata, ini, myParser);
-    myParser.Get_tail(&tail);
+    int tst = Analyze(Inidata, ini, gen, ini_zero_parse);
     if (tst > 0)
         cout << "Section read:" << Ini.size();
     else
         cout << "Parsing errors detected, status = " << hex << tst << endl
-         << "stopped at: " << tail << endl;
+         << "stopped at: " << (gen.data + gen.length)  << endl;
 
     for (vector<struct Section>::iterator j = Ini.begin(); j != Ini.end(); ++j) {
         cout << endl << "Section " << j->name << " has " << (*j).value.size() << " values: "; 
@@ -157,7 +150,7 @@ int main()
         }
     }
 
-	return  0; 
+    return  0; 
 }
 
 
