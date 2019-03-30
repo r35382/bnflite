@@ -97,7 +97,7 @@ private:
     static bool getNumber(const char* lexem, size_t len);
     static bool dbgPrint(const char* lexem, size_t len);
     static bool printMsg(const char* lexem, size_t len);
-    static int syntaxError(const char* lexem, size_t len);
+    static bool syntaxError(const char* lexem, size_t len);
     static bool numberAction(const char* lexem, size_t len);
     static bool buildBinaryAction(const char* lexem, size_t len);
     static bool buildUnaryAction(const char* lexem, size_t len);
@@ -168,10 +168,10 @@ bool C_Xprs::printMsg(const char* lexem, size_t len)
 }
 
 
-int C_Xprs::syntaxError(const char* lexem, size_t len)
+bool C_Xprs::syntaxError(const char* lexem, size_t len)
 {
     printf("forced syntax error for: %.*s;\n", len, lexem);
-    return eError;
+    return true;
 }
 
 
@@ -386,7 +386,7 @@ void C_Xprs::GrammaInit()
 
     PrimaryXprs =   Number + Try() + numberAction + PostfixXprs + Return() | 
                     "(" + Try() + MainXprs + ")" + Return() |
-                    Action(syntaxError);
+                    syntaxError + Syntax();
 
     UnaryXprs =
             Lexem("++") + Try() + unaryAction + PrimaryXprs + buildUnaryAction + Return() |
@@ -453,11 +453,6 @@ void C_Xprs::GrammaInit()
     MainXprs = ConditionalXprs;
     
 }
-
-/* Start custom parsing, use getPStop and getResult to obtain results */
-template <class P, class U> inline int Analyze(_Tie& root, const char* text, _Base* parser)
-    {   return parser._analyze(root, text) | parser.Get_tail(0); }
-
 
 
 int catch_syntax_error(const char* ptr)

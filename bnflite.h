@@ -57,7 +57,7 @@ namespace bnf
 
 enum Limits {   maxCharNum = 256, maxLexemLength = 1024, maxIterate = 0x4096
             };
-enum Status {   eNone = 0, eErr = 0, eOk = 1,
+enum Status {   eNone = 0, eOk = 1,
                 eRet = 0x8, e1st = 0x10, eSkip = 0x20, eTry = 0x40, eNull = 0x80,
                 eRest = 0x0100, eNoData = 0x0200, eOver = 0x0400, eEof = 0x0800,
                 eBadRule = 0x1000, eBadLexem = 0x2000, eSyntax = 0x4000,
@@ -66,13 +66,17 @@ enum Status {   eNone = 0, eErr = 0, eOk = 1,
 
 class _Tie; class _And; class _Or; class _Cycle;
 
+#if !defined(BNFLITE_CATCH_ERROR) // to redefine base function to catch syntax error after Try()
+#define BNFLITE_CATCH_ERROR _Base::base_error
+#endif
+
 /* context class to support the first kind of callback */
 class _Base // base parser class
 {
 public:
     std::vector<const char*> cntxV; // public for internal extensions
 protected: friend class Token; friend class Lexem; friend class Rule;
-           friend class _And; friend class _Or; friend class Action;
+           friend class _And;  friend class _Or;
     int level;
     const char* (*zero_parse)(const char*);
     int (*catch_error)(const char* ptr);
@@ -89,7 +93,8 @@ protected: friend class Token; friend class Lexem; friend class Rule;
         {};
 public:
     int _analyze(_Tie& root, const char* text, size_t*);
-    _Base(const char* (*pre)(const char*)): level(1), zero_parse(pre?pre:base_parser), catch_error(base_error)
+    _Base(const char* (*pre)(const char*))
+        : level(1), zero_parse(pre?pre:base_parser), catch_error(BNFLITE_CATCH_ERROR)
         {};
     virtual ~_Base()
         {};
@@ -114,10 +119,9 @@ public:
 class _Tie
 {
     bool _is_compound();
-protected:              friend class _Base;  friend class ExtParser;
+protected:              friend class _Base; friend class ExtParser;
     friend class _And;  friend class _Or;   friend class _Cycle;
     friend class Token; friend class Lexem; friend class Rule;
-    friend int _Base::_analyze(_Tie& root, const char* text, size_t*);
 
     bool inner;
     mutable std::vector<const _Tie*> use;
@@ -199,7 +203,6 @@ public:
     _Cycle operator()(int at_least, int total); // ABNF case <a>.<b>*<element> as element(a,b)
     _Cycle operator*(); // ABNF case *<element> (from 0 to infinity)
     _Cycle operator!(); // ABNF case <0>.<1>*<element> or <1><element> (at least one)
-    // Note: more readable to use Series, Iterate, Repeat statements correspondingly
 };
 
 /* implementation of parsing control statements */
@@ -228,11 +231,14 @@ typedef _Ctrl<eOk|eRet, 'R'> Return;
 /* Switch to use "Accept First" strategy for disjunction rule instead "Accept Best" */
 typedef _Ctrl<e1st, '1'> AcceptFirst;
 
-/* Try to catch Syntax error in current conjunction rule */
+/* Try to catch syntax error in current conjunction rule */
 typedef _Ctrl<eOk|eTry, 'T'> Try;
 
 /* Check but do not accept next statement for conjunction rule */
 typedef _Ctrl<eOk|eSkip, 'S'> Skip;
+
+/* Force syntax error */
+typedef _Ctrl<eError|eSyntax, 'E'> Syntax;
 
 
 /* interface class for tokens */
@@ -299,10 +305,10 @@ inline Token operator""_T(const char* sample, size_t len)
     {   return  Token(std::string(sample, len).c_str());    }
 #endif
 
-/* internal standalone callback wrapper class */
+/*  standalone callback wrapper class */
 class Action: public _Tie
 {
-    int (*action)(const char* lexem, size_t len);
+    bool (*action)(const char* lexem, size_t len);
     Action(_Tie&);
 protected:  friend class _Tie;
     explicit Action(const Action* a) :_Tie(a), action(a->action)
@@ -311,15 +317,13 @@ protected:  friend class _Tie;
         {   std::vector<const char*>::reverse_iterator itr = parser->cntxV.rbegin() + 1;
             return (*action)(*itr, parser->cntxV.back() - *itr); }
 public:
-    Action(int (*action)(const char* lexem, size_t len), const char *name = "")
-        :_Tie(name), action(action) {};
     Action(bool (*action)(const char* lexem, size_t len), const char *name = "")
-        :_Tie(name), action(reinterpret_cast<int(*)(const char*, size_t)>(action)) {};
+        :_Tie(name), action(action) {};
     virtual ~Action()
         {   _safe_delete(this); }
 };
 
-/* internal class to support conjunction constructions of BNF elements */
+/* internal class to support conjunction constructions of BNFlite elements */
 class _And: public _Tie
 {
 protected: friend class _Tie; friend class Lexem;
@@ -340,10 +344,10 @@ protected: friend class _Tie; friend class Lexem;
                         save = parser->cntxV.size(); }
                 } else {
                     if (parser->level && (stat & eTry) && !(stat & eError) && !save) {
-                        stat |= parser->catch_error(""); }
+                        stat |= parser->catch_error(parser->cntxV.back()); }
                     parser->_erase(size);
-                    return (stat & (eEof|eOver)? eError : eErr) | (stat & ~(eTry|eSkip|eOk)); }}
-            return (stat & eTry? eRet : eNone) | eOk | (stat & ~(eTry|eSkip));   }
+                    return (stat & (eEof|eOver)? eError : eNone) | (stat & ~(eTry|eSkip|eOk)); }}
+            return  eOk | (stat & ~(eTry|eSkip));   }
 public:
     ~_And()
         {   _safe_delete(this); }
@@ -367,7 +371,7 @@ inline _And operator+(const char* s, const _Tie& link)
 inline _And operator+(bool (*f)(const char*, size_t), const _Tie& link)
     {   return _And(Action(f), link); }
 
-/* internal class to support disjunction constructions of BNF elements */
+/* internal class to support disjunction constructions of BNFlite elements */
 class _Or: public _Tie
 {
 protected: friend class _Tie;
@@ -603,6 +607,13 @@ public:
     template <class W> friend Rule& Bind(Rule& rule, W (*callback)(std::vector<W>&));
 };
 
+inline int _Base::_analyze(_Tie& root, const char* text, size_t* plen)
+{   cntxV.push_back(text); cntxV.push_back(text);
+    int stat = root._parse(this);
+    const char* ptr = zero_parse(cntxV.back());
+    if (plen) *plen = ptr - text;
+    return stat | (*ptr? eError|eRest: 0);  }
+
 /* User interface template to support the second kind of callback */
 /* The user need to specify own 'Foo' abstract type to develop own callbaks */
 /* like: Interface<Foo> CallBack(std::vector<Interface<Foo>>& res); */
@@ -635,14 +646,6 @@ template <typename Data = bool> struct Interface
         {   if (pstop) *pstop = text + length;
             return length ? eNone : eNull; }
 };
-
-
-inline int _Base::_analyze(_Tie& root, const char* text, size_t* plen)
-{   cntxV.push_back(text); cntxV.push_back(text);
-    int stat = root._parse(this);
-    const char* ptr = zero_parse(cntxV.back());
-    if (plen) *plen = ptr - text;
-    return stat | (*ptr? eError|eRest: 0);  }
 
 /* Private parsing interface */
 template <class U> inline int _Analyze(_Tie& root, U& u, const char* (*pre_parse)(const char*))
