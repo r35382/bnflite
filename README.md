@@ -17,10 +17,10 @@ BNFLite is intended to parse:
 ## Preface
 
 Once the author participated in the development of some tool which was invented to integrate together a lot of proprietary modules.
-There were the command line with thousands combinations of options, poor examples, ambiguous docs. 
+There were thousands combinations of command line options, poor examples, ambiguous docs. 
 So the command line was not compatible from version to version. 
 Up-to-date formal BNF specs of the command line language could help but not for projects with limited budget.
-Starting YACC, there is a solution to support some extra executable code describing language specifics. 
+Starting YACC era, there is a solution to support some extra executable code describing language specifics. 
 As a rule, usage of such means is too heavy because it is extra stuff and it is not BNF.
 BNFLite does not have such drawbacks! 
 
@@ -36,7 +36,7 @@ You just need to include bnflite.h in to your C++ application:
 
 ### BNF Notation
 
-BNF (Backus–Naur form) specificates rules of a context-free grammar.
+The BNF (Backus–Naur form) specificates rules of a context-free grammar.
 Each computer language should have a complete BNF syntactic specification.
 Formal BNF term is called "production rule". Each rule except "terminal"
 is a conjunction of a series of more concrete rules or terminals:
@@ -50,7 +50,7 @@ For example:
  
 which means that the number is just a digit or another number with one more digit.
 
-Generally terminal is a symbol called "token". There are two kinds of productions rules:
+Generally terminal is a symbol called "token". There are two types of productions rules:
 Lexical production is called "lexem". We will call syntax production rule as just a "rule".
 
 ### BNFlite notation
@@ -96,7 +96,7 @@ So, you can almost directly transform ABNF specifications to BNFLite
 To receive intermediate parsing results the callback system can be used.
 The first kind of callback can be used as expression element:
 
-    int MyNumber(const char* nuber_string, size_t length_of_number) //...
+    bool MyNumber(const char* number_string, size_t length_of_number) //...
     Lexem Number = Iterate(1, Digit) + MyNumber;
 	
 The second kind of callback can be bound to production Rule.
@@ -194,7 +194,7 @@ To build and run (remove option `-march=pentium4` if it needed for arm or 64 bui
 
 > result = 2, 5, 8, 11;
 
-Note: The embedded function `GetX()` returns sequential number started from 0.
+Note: The embedded function `GetX()` returns a sequential integer number started from `0`.
 So, the result is four parallel computations: 
 `2 + 3 * 0 = 2; 2 + 3 * 1 = 5; 2 + 3 * 2 = 8; 2 + 3 * 3 = 11`.
 

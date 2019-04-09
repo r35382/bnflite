@@ -181,8 +181,6 @@ protected:              friend class _Base; friend class ExtParser;
 public:
     void setName(const char * name)
         {   this->name = name; }
-    _Tie& Name(const char * name)
-        {   this->name = name; return *this; }
     const char *getName()
         {   return name.c_str(); }
     _And operator+(const _Tie& link);
@@ -205,7 +203,7 @@ public:
     _Cycle operator!(); // ABNF case <0>.<1>*<element> or <1><element> (at least one)
 };
 
-/* implementation of parsing control statements */
+/* implementation of parsing control rules */
 template <const int flg, const char cc> class _Ctrl: public _Tie
 {
 protected:  friend class _Tie;
@@ -617,7 +615,6 @@ inline int _Base::_analyze(_Tie& root, const char* text, size_t* plen)
 /* User interface template to support the second kind of callback */
 /* The user need to specify own 'Foo' abstract type to develop own callbaks */
 /* like: Interface<Foo> CallBack(std::vector<Interface<Foo>>& res); */
-/* The user also can create own class just supporting mandatory constructors */
 template <typename Data = bool> struct Interface
 {
     Data data;              //  user data element

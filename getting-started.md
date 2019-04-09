@@ -17,7 +17,7 @@ For example:
 which means that a number is either a single digit, or a single digit followed by another number. 
 ( the number is just a digit or another number with one more digit )
 
-BNFlite implements embedded domain specific language approach for gramma specification 
+BNFlite implements embedded domain specific language approach for grammar specification 
 when all "production rules" are constructed as instances of C++ classes concatenated 
 by means of overloaded arithmetic operators. 
 
@@ -116,7 +116,6 @@ The "end" variable contains the pointer to unrecognized `";"`.
 Let assume we need to parse `buf[16]` text as C style array:
 We can define it as lexem:
 
-	Lexem*  OptionalIdentifier = LetterOrDigit
     Lexem Identifier = Letter + OptionalIdentifier;
     Lexem Array = Identifier + "[" + Digit + "]";
 
@@ -125,9 +124,14 @@ Or as production rule:
     Rule Identifier = Letter + OptionalIdentifier;
     Rule Array = Identifier + "[" + Digit + "]";
 
-For the "Rule" case we can parse text with tab an spaces like this `"buf0\t[ 16 ]"`. 
-For the "Lexem" case we need to program all expected spaces as tokens. 
-Note: for construction like `"buf [ 16 /*17*/ ]"` we need to use custom `pre_parse` handler.
+The result of `Analyze(Array, "buf0\t[ 16 ]");` depends on `Array` type.  
+For the "Rule" case the input text will be successfully parsed. 
+For the "Lexem" case any space or tab in the input text will be treated as error.  
+
+The Rule behavior to ignore some predefined constructions can be changed by the user.
+In this case a custom handler `const char* pre_parse(const char* ptr)` should be introduced
+to call `Analyze(Array, "buf [ 16 /*17*/ ]", pre_parse);`
+
 
 
 ## User's Callbacks
@@ -136,14 +140,22 @@ Intermediate parsing results can be obtain by callbacks. Two kinds of callback a
  - Function with prototype  `bool fun(const char*, size_t)`  can be used as an expression element:
 
     bool SizeNumber(const char* number_string, size_t length_of_number) 
-    { printf("Size of Array : %.*s;\n", length_of_number, number_string); return true; }
-	//...
+    {   int number;  	
+        std::istringstream iss(std::string(number_string, length_of_number));
+        iss >> number;
+        if (iss.good() && number > 0 && number < MAX_NUMBER) return true;	
+        else { std::cout << "bad size of array:"; std::cout.write(number_string, length_of_number); return false; }
+    }
+    //...
     Rule Array = Identifier + "[" + Digit + SizeNumber + "]";
 
-The user callback can return `1`(true) for success or `0`(false) to reject whole production.
+The user callback has too parameters: the pointer to the latest found element and its length.
+In this example `SizeNumber` callback accepts the string of a digit number.
+The user callback can do some semantic analyzes and  return `1`(true) to continue parsing 
+or `0`(false) to reject the current rule. 
 	
- - Each Rule can be bound with callback to implement user needs
-The user needs to define own working type for his data. This type is used for specialization 
+ - Each Rule can be bound with callback to be called in successful case
+First of all the user needs to define own working type for his data. This type is used for specialization 
 of BNFlite `Interface` template class to pass data between Rules. 
 
     typedef Interface<user_type> Usr;
@@ -152,7 +164,8 @@ of BNFlite `Interface` template class to pass data between Rules.
     Bind(Array, SizeNumber); //connection between rule `Array` and user callback 
 
 The callback receives vector of Interface objects from lower rules 
-and returns single `Interface` object as result. Root result is in `Analyze` call.
+and returns single `Interface` object as result. 
+Final root result is in `Analyze` call.
 
     Usr usr; // results after parsing
     int tst = bnf::Analyze(Identifier, "b[16];", usr);
@@ -167,36 +180,39 @@ and returns single `Interface` object as result. Root result is in `Analyze` cal
  - `u.length` - final length of parsed data to be returned after `Analize` call
  - `u.data` - final user data to be returned after `Analize` call
   
-## Return Value 
+### Return Value 
 
-`Analize` returns a negative value in case of parsing error. 
-Bit fields of the returned value can provide more information about parser behavior
+`Analize()` returns a negative value in case of parsing error. 
+Bit fields of the returned value can provide more information about parser behavior.
 
 	
 ## Optimizations for parser
 
 Generally, BNFlite utilizes simple top-down parser with backtracking.
 This parser may be not so good for complex grammar. 
-However, the user has ways to make parsing smarter.
+However, the user has several special rules to make parsing smarter.
 
- - `Return()` - Choose current production
- - `AcceptFirst()` - Choose first appropriate production
- - `Skip()` - Accept result but not production itself
+ - `Return()` - Choose current production (should be last in conjunction rule)
+ - `AcceptFirst()` - Choose first appropriate production (should be first in disjunction rule)
+ - `Skip()` - Accept result but not production itself (can not be first)
 
-In some cases less optimal MemRule(tbd) can be used to remember unsuccessful parsing to reduce known overhead
+In some cases less optimal `MemRule()` can be used to remember unsuccessful parsing to reduce known overhead
 
 
 ## Debugging of BNFLite Grammar
 
-Writing grammar by EDSL is unusual and the user does not have full understanding about the parser. 
-If the `Analyze` call returns an error for the correct text, 
-then the user always should take into consideration the possibility of grammar bugs.
+Writing grammar by EDSL will be easier if the user has understanding the parser behavior. 
+If the `Analyze` call returns an error the user always should take into consideration 
+both possibilities:
+ - syntax errors in the input text (incorrect text)
+ - grammar bugs (incorrect rules).
+The BNFLite provides several mechanisms to minimize debugging and testing overhead     
 
-### Return code
+### Return codes
 
-Return code from `Analyze` call can contain flags related to the grammar. 
- - `eBadRule`, `eBadLexem` - means the rules tree is not properly built
- - `eEof` - "unexpected end of file" for most cases it is not enough text for applied rules
+Return code from `Analyze` call can contain flags related to the gramma. 
+ - `eBadRule`, `eBadLexem` - means the rules tree is not properly built 
+ - `eEof` - "unexpected end of file" for most cases it is OK, just not enough text for applied rules
  - `eSyntax` - syntax error (controlled by the user)
  - `eOver` - too much data for cycle rules  
  - `eRest` - not all text has been parsed
@@ -205,18 +221,19 @@ Return code from `Analyze` call can contain flags related to the grammar.
 
 ### Names and breakpoints
 
-The user can assign a name to the Rule. It can help to track recursive descent parser using Rule::_parse function. 
+The user can assign the name to the `Rule` by `setName()`. 
+It can help to track recursive descent parser looking `Rule::_parse` function calls. 
 Debugger stack (history of function calls) can inform which Rule was applied and when. 
 The user just needs to watch the `this->name` variable. It is not as difficult as it seems at first glance.
 
 ### Grammar subsets
 
-Analyze function can be applied as unit test to any Rule representing subset of grammar.
+`Analyze` function can be applied as unit test to any `Rule` representing subset of the gramma.
 
 ### Tracing
 
 The first kind of callback or function with prototype `bool foo(const char* lexem, size_t len)` 
-can be used in BNFLite expressions for both reasons: to obtain temporary results and to inform about predicted errors.
+can be used in BNFLite rules to obtain the temporary result. 
 
 This function will print the parsed number:
 
@@ -236,52 +253,56 @@ The function need to return `true` because result is correct.
 
 ### Catching warning
 
-Let's assume the numbers with leading `0` are not wanted.
+The first kind of callback can be used in BNFLite rules to inform about incorrect situations.
+Let's assume numbers with leading `0` can be performed bat they are not wanted.
 
     static bool Check0Number(const char* lexem, size_t len)
     { printf("Warning: the number %.*s with leading zero found\n", len, lexem); return false;}
         /* … */
-    Lexem num_0 = "0" + digit1_9 + *DIGIT;
+    Lexem num_0 = "0" + digit1_9 + *DIGIT; // special rule for numbers with one leading zero
     Rule number = num_ + DebugNumber | num_0 + Check0Number;
 
-The function should return `false` to inform the parser the production is not fit. 
+The function still should return `true` to allow the parser to perform such numbers. 
 C++11 constructions like below are also possible:
 
      Rule number = num_  | num_0 + [](const char* lexem, size_t len)
-    { return !printf("Warning: the number %.*s with leading zero found\n", len, lexem); }
+    { return !!printf("Warning: the number %.*s with leading zero found\n", len, lexem); }
 
 ### Catching errors
 
-In some cases we need to force parser to stop correctly because text is incorrect.
+In some cases we need to force parser to stop correctly because input text is incorrect.
 Let's assume the numbers with leading of several `0` should be treated as error.   	
 	
     static int Error00Number(const char* lexem, size_t len)
-    { printf("Error with leading zeros: %.*s\n", len, lexem); return true}
+    { printf("Error with leading zeros: %.*s\n", len, lexem); return false}
         /* … */
-    Lexem num_00 = Series(2, "0") + digit1_9 + *DIGIT;
-    Rule number = num_ + DebugNumber | num_00 + Error00Number +Syntax() | num_0 + Check0Number;
+    Lexem num_00 = Series(2, "0") + digit1_9 + *DIGIT; // special rule for numbers with two or more leading zeros
+    Rule number = num_ + DebugNumber | num_00 + Error00Number + Syntax() | num_0 + Check0Number;
 
-Notes:	
- - The function has to return `eError` to stop parsing, so it utilizes 'int' return type. by means of `Action` statement
+The function should return `false` because text is not applied. 
+The `Syntax()` special rule forces the parser to stop and return `eSyntax` error.
+
+Note:	
  - The order `num_ + num_00 + num_0` is important because `num_0` is subset of `num_00`
 
 	
 ### Syntax error 
 
-Below is the example of hex-decimal digit: 
+Below is the extended example for hex-decimal digit: 
 
-    Token hex_digit("abcdefABCDEF",DIGIT); 
+    Token hex_digit("abcdefABCDEF", DIGIT); 
     Lexem HexDigits  = Token("0") + Token("Xx") + Series(1, hex_digit);
 
 
-Let's assume the parser try to apply the `HexDigits` production rule to `0.0` and `OxZ` text elements.
+Let's assume the parser tries to apply the `HexDigits` rule to `0.0` and `OxZ` text elements.
 Both elements are not fit, but `0.0` can be appropriate for some another rule of gramma.
 But the `OxZ` is syntax error. We definitely know there is no rule for it.
-So we should use `Try()` construction to catch `eSyntax` error in such case like this:
+So we should use `Try()` special rule to catch `eSyntax` error at the end.
+In other words, the `Try()` forces `eSyntax` error if input text is not applied after `Try()` special rule.
 
 Lexem HexDigits  = Token("0") + Token("Xx") + Try() + Series(1, hex_digit);
 
 In case of `HexDigits` unsuccess the internal `catch_error` handler is called.
-The `Analize` returns `eError|eSyntax`.
+And the `Analize` returns `eSyntax` flag.
 
 	
