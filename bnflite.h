@@ -257,8 +257,8 @@ class Token: public _Tie
                     parser->_stub_call(cc, cc + 1, name.c_str());
                     parser->cntxV.push_back(cc); }
                 parser->cntxV.push_back(++cc);
-                return  *cc ? true : true|eEof; }
-            return 0; }
+                return  *cc ? eOk : eOk|eEof; }
+            return *cc ? eNone : eEof; }
 public:
     Token(const char c) :_Tie(std::string(1, c))
         {   Add(c, 0); };    // create single char token
@@ -331,21 +331,21 @@ protected: friend class _Tie; friend class Lexem;
         {};
     virtual int _parse(_Base* parser) const throw()
         {   int stat = 0; int save = 0; int size = parser->cntxV.size();
-            for (unsigned i = 0; i < use.size(); i++) {
-                stat &= ~(eSkip|eRet|eOk);
+            const char* org = parser->cntxV.back();
+            for (unsigned i = 0; i < use.size(); i++, stat &= ~(eSkip|eOk)) {
                 stat |= use[i]->_parse(parser);
-                if ((stat & (eOk|eError)) == eOk) {
-                    if(save) {
-                        parser->cntxV.resize(save);
-                        save = 0; }
-                    if (stat & eSkip) {
-                        save = parser->cntxV.size(); }
-                } else {
+                if (!(stat & eOk) || (stat & eError) || ((stat & eEof) && !(parser->cntxV.back() - org))) {
                     if (parser->level && (stat & eTry) && !(stat & eError) && !save) {
                         stat |= parser->catch_error(parser->cntxV.back()); }
                     parser->_erase(size);
-                    return (stat & (eEof|eOver)? eError : eNone) | (stat & ~(eTry|eSkip|eOk)); }}
-            return  eOk | (stat & ~(eTry|eSkip));   }
+                    return stat & ~(eTry|eSkip|eOk); }
+                else {
+                    if (save) {
+                        parser->cntxV.resize(save);
+                        save = 0; }
+                    if (stat & eSkip) {
+                        save = parser->cntxV.size(); } } }
+            return  eOk | (stat & ~(eTry|eSkip)); }
 public:
     ~_And()
         {   _safe_delete(this); }
@@ -378,10 +378,10 @@ protected: friend class _Tie;
     explicit _Or(const _Or* rl) :_Tie(rl)
         {};
     virtual int _parse(_Base* parser) const throw()
-        {   int stat = 0; int max = 0; int tmp = -1;
+        {   int stat = 0; int tstat = 0; int max = 0; int tmp = -1;
             const char* org = parser->cntxV.back();
             unsigned int msize; unsigned int size = parser->cntxV.size();
-            for (unsigned i = 0; i < use.size(); i++, stat &= ~(eOk|eRet|eError)) {
+            for (unsigned i = 0; i < use.size(); i++, stat &= ~(eOk|eRet|eEof|eError)) {
                 msize = parser->cntxV.size();
                 if (msize > size) {
                     parser->cntxV.push_back(org); }
@@ -390,14 +390,15 @@ protected: friend class _Tie;
                     tmp = parser->cntxV.back() - org;
                     if (  (tmp > max) || (tmp > 0 && (stat & (eRet|e1st|eError)))  )  {
                         max = tmp;
+                        tstat = stat;
                         if (msize > size) {
                             parser->_erase(size, msize + 1); }
                         if (stat & (eRet|e1st|eError)) {
                             break; }
-                        continue;  }  }
+                        continue; } }
                 if (parser->cntxV.size() > msize) {
                     parser->_erase(msize); } }
-            return (max || tmp >= 0 ? stat | eOk: stat & ~eOk) & ~(e1st|eRet); }
+            return (max || tmp >= 0 ? tstat | eOk: tstat & ~eOk) & ~(e1st|eRet); }
 public:
     ~_Or()
         {   _safe_delete(this); }
@@ -536,7 +537,7 @@ protected: friend class _Tie;
                 return i < min? stat & ~eOk : stat | eOk; }
             return stat | flag | eOk; }
     _Cycle(int at_least, const _Tie& link, int total = maxIterate, int limit = maxIterate)
-        :_Tie(std::string("Iterate")), min(at_least), max(total), flag(total < limit? eNone : eOver)
+        :_Tie(std::string("Cycle")), min(at_least), max(total), flag(total < limit? eNone : eOver|eError)
         {   _clue(link); }
 public:
     ~_Cycle()

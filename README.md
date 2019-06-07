@@ -36,7 +36,7 @@ You just need to include bnflite.h in to your C++ application:
 
 ### BNF Notation
 
-The BNF (Backus–Naur form) specificates rules of a context-free grammar.
+The BNF (Backus–Naur form) specifies rules of a context-free grammar.
 Each computer language should have a complete BNF syntactic specification.
 Formal BNF term is called "production rule". Each rule except "terminal"
 is a conjunction of a series of more concrete rules or terminals:
