@@ -55,7 +55,7 @@ namespace bnf
 //      * Rule (or RULE) is used here as synonym of syntax production
 // To parse any number (e.g. 532) it is just enough to call the bnf::Analyze(Number, "532")
 
-enum Limits {   maxCharNum = 256, maxLexemLength = 1024, maxIterate = 0x4096
+enum Limits {   maxCharNum = 256, maxLexemLength = 1024, maxRepeate = 4096, maxEmptyStack = 16
             };
 enum Status {   eNone = 0, eOk = 1,
                 eRet = 0x8, e1st = 0x10, eSkip = 0x20, eTry = 0x40, eNull = 0x80,
@@ -75,9 +75,15 @@ class _Base // base parser class
 {
 public:
     std::vector<const char*> cntxV; // public for internal extensions
-protected: friend class Token; friend class Lexem; friend class Rule;
-           friend class _And;  friend class _Or;
+protected:  friend class Token; friend class Lexem; friend class Rule;
+            friend class _And;  friend class _Or;   friend class _Cycle;
     int level;
+    const char* pstop;
+    int _chk_stack()
+        {   static const char* org; static int cnt;
+            if (org != cntxV.back()) { org = cntxV.back(); cnt = 0; }
+            else if (++cnt > maxEmptyStack) return  eOver|eError;
+            return 0; }
     const char* (*zero_parse)(const char*);
     int (*catch_error)(const char* ptr);
     virtual void _erase(int low, int up = 0)
@@ -93,8 +99,8 @@ protected: friend class Token; friend class Lexem; friend class Rule;
         {};
 public:
     int _analyze(_Tie& root, const char* text, size_t*);
-    _Base(const char* (*pre)(const char*))
-        : level(1), zero_parse(pre?pre:base_parser), catch_error(BNFLITE_CATCH_ERROR)
+    _Base(const char* (*pre)(const char*)) : level(1), pstop(0),
+            zero_parse(pre?pre:base_parser), catch_error(BNFLITE_CATCH_ERROR)
         {};
     virtual ~_Base()
         {};
@@ -115,7 +121,7 @@ public:
 #define _NAME_OFF 6
 #endif
 
-/* internal base class to support multiform relationships between different BNF elements */
+/* internal base class to support multiform relationships between different BNFlite elements */
 class _Tie
 {
     bool _is_compound();
@@ -388,7 +394,7 @@ protected: friend class _Tie;
                 stat |= use[i]->_parse(parser);
                 if (stat & (eOk|eError)) {
                     tmp = parser->cntxV.back() - org;
-                    if (  (tmp > max) || (tmp > 0 && (stat & (eRet|e1st|eError)))  )  {
+                    if ((tmp > max) || (tmp > 0 && (stat & (eRet|e1st))) || (tmp >= 0 && (stat & eError))) {
                         max = tmp;
                         tstat = stat;
                         if (msize > size) {
@@ -422,7 +428,7 @@ inline _Or operator|(const char* s, const _Tie& link)
 inline _Or operator|(bool (*f)(const char*, size_t), const _Tie& link)
     {   return _Or(Action(f), link); }
 inline bool _Tie::_is_compound()
-        {return dynamic_cast<_And*>(this) || dynamic_cast<_Or*>(this); }
+    {   return dynamic_cast<_And*>(this) || dynamic_cast<_Or*>(this); }
 
 
 /* interface class for lexem */
@@ -491,6 +497,7 @@ protected:  friend class _Tie; friend class _And;
             int stat = use[0]->_parse(parser);
             if ((stat & eOk) && parser->cntxV.size() - size > 1) {
                 parser->_do_call(up, callback, parser->cntxV[size], parser->cntxV.back(), name.c_str());
+                if (parser->cntxV.back() > parser->pstop) parser->pstop = parser->cntxV.back(); 
                 parser->cntxV[(++size)++] = parser->cntxV.back(); }
             parser->cntxV.resize(size);
             parser->_post_call(up);
@@ -520,13 +527,12 @@ public:
 /* internal class to support repeat constructions of BNF elements */
 class _Cycle: public _Tie
 {
-    unsigned int min;
-    unsigned int max;
+    unsigned int min, max;
     int flag;
 protected: friend class _Tie;
-    explicit _Cycle(const _Cycle* cl) :_Tie(cl), min(cl->min), max(cl->max), flag(cl->flag)
+    explicit _Cycle(const _Cycle* u) :_Tie(u), min(u->min), max(u->max), flag(u->flag)
         {};
-    _Cycle(const _Cycle& cycle) :_Tie(cycle), min(cycle.min), max(cycle.max), flag(cycle.flag)
+    _Cycle(const _Cycle& w) :_Tie(w), min(w.min), max(w.max), flag(w.flag)
         {};
     int _parse(_Base* parser) const throw()
         {   int stat; unsigned int i;
@@ -534,18 +540,18 @@ protected: friend class _Tie;
                 stat |= use[0]->_parse(parser);
                 if ((stat & (eOk|eError)) == eOk)
                     continue;
-                return i < min? stat & ~eOk : stat | eOk; }
+                return i < min? stat & ~eOk : stat | parser->_chk_stack() | eOk; }
             return stat | flag | eOk; }
-    _Cycle(int at_least, const _Tie& link, int total = maxIterate, int limit = maxIterate)
-        :_Tie(std::string("Cycle")), min(at_least), max(total), flag(total < limit? eNone : eOver|eError)
+    _Cycle(int at_least, const _Tie& link, int total = maxRepeate, int limit = maxRepeate)
+        :_Tie(std::string("@")), min(at_least), max(total), flag(total < limit? eNone : eOver|eError)
         {   _clue(link); }
 public:
     ~_Cycle()
         {   _safe_delete(this); }
     friend _Cycle operator*(int x, const _Tie& link);
-    friend _Cycle Repeat(int at_least, const Rule& rule, int total = maxLexemLength, int limit = maxLexemLength);
+    friend _Cycle Repeat(int at_least, const Rule& rule, int total = maxLexemLength, int limit = maxRepeate);
     friend _Cycle Iterate(int at_least, const Lexem& lexem, int total = maxLexemLength, int limit = maxLexemLength);
-    friend _Cycle Series(int at_least, const Token& token, int total = maxLexemLength, int limit = maxLexemLength);
+    friend _Cycle Series(int at_least, const Token& token, int total = maxLexemLength, int limit = maxCharNum);
 };
 inline _Cycle _Tie::operator*()
     {   return _Cycle(0, *this); }
@@ -592,7 +598,7 @@ protected:
                 } else { reinterpret_cast<U(*)(std::vector<U>&)>(callback)(*cntxU); }
             } else if (up.first) {
                     ((std::vector<U>*)up.first)->push_back(U(begin, end - begin, name)); } }
-    virtual void _stub_call( const char* begin, const char* end,  const char* name)
+    virtual void _stub_call( const char* begin, const char* end, const char* name)
         {   if (cntxU) {
                 cntxU->push_back(U(begin, end - begin, name)); } }
 public:
@@ -602,14 +608,14 @@ public:
         {};
     int _get_result(U& u)
         {   if (cntxU && cntxU->size()) {u.data = cntxU->front().data; return 0;}
-                else return eNull; }
+            else return eNull; }
     template <class W> friend Rule& Bind(Rule& rule, W (*callback)(std::vector<W>&));
 };
 
 inline int _Base::_analyze(_Tie& root, const char* text, size_t* plen)
 {   cntxV.push_back(text); cntxV.push_back(text);
     int stat = root._parse(this);
-    const char* ptr = zero_parse(cntxV.back());
+    const char* ptr = zero_parse(pstop > cntxV.back() ? pstop : cntxV.back());
     if (plen) *plen = ptr - text;
     return stat | (*ptr? eError|eRest: 0);  }
 
@@ -650,7 +656,7 @@ template <class U> inline int _Analyze(_Tie& root, U& u, const char* (*pre_parse
     {   if (typeid(U) == typeid(Interface<>)) {
                     _Base base(pre_parse); return base._analyze(root, u.text, &u.length);
         } else {    std::vector<U> v; _Parser<U> parser(pre_parse, &v);
-                    return parser._analyze(root, u.text, &u.length) | parser._get_result(u); }  }
+                    return parser._analyze(root, u.text, &u.length) | parser._get_result(u); } }
 
 /* Primary interface set to start parsing of text against constructed rules */
 template <class U> inline int Analyze(_Tie& root, const char* text, const char** pstop, U& u, const char* (*pre_parse)(const char*) = 0)

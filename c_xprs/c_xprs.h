@@ -156,21 +156,20 @@ bool C_Xprs::getNumber(const char* lexem, size_t len)
 
 bool C_Xprs::dbgPrint(const char* lexem, size_t len)
 {   
-    char operation[256] = {0};  //strcpy(operation, Lexem::getLastLexem()); 
-    memcpy(operation, lexem, len); operation[len+1] = 0;
+    printf("dbg lexem: %.*s;\n", len, lexem);
     return true;
 }
 
 bool C_Xprs::printMsg(const char* lexem, size_t len)
 {
-    printf("dbg lexem: %.*s;\n", len, lexem);
+    printf("print lexem: %.*s;\n", len, lexem);
     return true;
 }
 
 
 bool C_Xprs::syntaxError(const char* lexem, size_t len)
 {
-    printf("forced syntax error for: %.*s;\n", len, lexem);
+    printf(" Callback: forced syntax error for: %.*s;\n", len, lexem);
     return true;
 }
 
@@ -464,9 +463,10 @@ int catch_syntax_error(const char* ptr)
 
 bool C_Xprs::ParseExpression(const char *expression)
 {
-    int tst = Analyze(MainXprs, expression);
+    const char *last = 0;
+    int tst = Analyze(MainXprs, expression, &last);
     if (tst < 0) {
-        std::cout << "Expression not OK," << "Err: " << std::hex   
+        std::cout << " Analize: expression not OK, " << "Err = {" << std::hex
             << (tst&eOk?"eOk":"eErr")
             << (tst&eRest?", eRest":"")
             << (tst&eOver?", eOver":"")
@@ -475,6 +475,8 @@ bool C_Xprs::ParseExpression(const char *expression)
             << (tst&eBadLexem?", eBadLexem":"")
             << (tst&eSyntax?", eSyntax":"")
             << (tst&eError?", eError":"") 
+            << "}, stopped at = {"
+            << last << "}"
         << std::endl;
         return false;
     }

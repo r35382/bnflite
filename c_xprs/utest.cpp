@@ -31,10 +31,12 @@ static void test_c_xprs(const char *expression, int test_result)
 {
     int value;
     if (gramma.Evaluate(expression, value))
-        std::cout << "result: " << expression << " is " <<  value <<"; Test: "
+        std::cout << "Passed: " << expression << " is " <<  value <<"; Test: "
                 << test_result <<  (value == test_result?" OK": "  Error") <<  "\n";
+    else if (test_result == -1)
+        std::cout << "Passed with expected error, expression: " << expression << "\n";
     else
-        std::cout << "Problem with expression: " << expression << "\n";
+        std::cout << "Not Passed: problem with expression: " << expression << "\n";
 }
 
 
