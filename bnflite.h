@@ -210,7 +210,7 @@ public:
 };
 
 /* implementation of parsing control rules */
-template <const int flg, const char cc> class _Ctrl: public _Tie
+template <const unsigned int flg, const char cc> class _Ctrl: public _Tie
 {
 protected:  friend class _Tie;
     virtual int _parse(_Base* parser) const throw()
@@ -548,10 +548,10 @@ protected: friend class _Tie;
 public:
     ~_Cycle()
         {   _safe_delete(this); }
-    friend _Cycle operator*(int x, const _Tie& link);
-    friend _Cycle Repeat(int at_least, const Rule& rule, int total = maxLexemLength, int limit = maxRepeate);
-    friend _Cycle Iterate(int at_least, const Lexem& lexem, int total = maxLexemLength, int limit = maxLexemLength);
-    friend _Cycle Series(int at_least, const Token& token, int total = maxLexemLength, int limit = maxCharNum);
+    friend _Cycle operator*(int at_least, const _Tie& link);
+    friend _Cycle Repeat(int at_least, const Rule& rule, int total, int limit);
+    friend _Cycle Iterate(int at_least, const Lexem& lexem, int total, int limit);
+    friend _Cycle Series(int at_least, const Token& token, int total, int limit);
 };
 inline _Cycle _Tie::operator*()
     {   return _Cycle(0, *this); }
@@ -559,13 +559,13 @@ inline _Cycle _Tie::operator!()
     {   return _Cycle(0, *this, 1); }
 inline _Cycle _Tie::operator()(int at_least, int total)
     {   return _Cycle(at_least, *this, total); }
-inline _Cycle operator*(int x, const _Tie& link)
-    {   return _Cycle((int)x, link); }
-inline _Cycle Repeat(int at_least, const Rule& rule, int total, int limit)
+inline _Cycle operator*(int at_least, const _Tie& link)
+    {   return _Cycle(at_least, link); }
+inline _Cycle Repeat(int at_least, const Rule& rule, int total = maxLexemLength, int limit = maxRepeate)
     {   return _Cycle(at_least, rule, total, limit); }
-inline _Cycle Iterate(int at_least, const Lexem& lexem, int total, int limit)
+inline _Cycle Iterate(int at_least, const Lexem& lexem, int total = maxLexemLength, int limit = maxLexemLength)
     {   return _Cycle(at_least, lexem, total, limit); }
-inline _Cycle Series(int at_least, const Token& token, int total, int limit)
+inline _Cycle Series(int at_least, const Token& token, int total = maxLexemLength, int limit = maxCharNum)
     {   return _Cycle(at_least, token, total, limit); }
 
 /* context class to support the second kind of callback */
