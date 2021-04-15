@@ -385,7 +385,7 @@ void C_Xprs::GrammaInit()
 
     PrimaryXprs =   Number + Try() + numberAction + PostfixXprs + Return() | 
                     "(" + Try() + MainXprs + ")" + Return() |
-                    syntaxError + Syntax();
+                    syntaxError + Catch();
 
     UnaryXprs =
             Lexem("++") + Try() + unaryAction + PrimaryXprs + buildUnaryAction + Return() |

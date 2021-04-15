@@ -242,7 +242,7 @@ typedef _Ctrl<eOk|eTry, 'T'> Try;
 typedef _Ctrl<eOk|eSkip, 'S'> Skip;
 
 /* Force syntax error */
-typedef _Ctrl<eError|eSyntax, 'E'> Syntax;
+typedef _Ctrl<eError|eSyntax, 'E'> Catch;
 
 
 /* interface class for tokens */
@@ -452,6 +452,7 @@ protected: friend class _Tie;
             parser->level++;
             if ((stat & eOk) && parser->cntxV.size() - size > 1) {
                 parser->_stub_call(org, parser->cntxV.back(), name.c_str());
+                if (parser->cntxV.back() > parser->pstop) parser->pstop = parser->cntxV.back();
                 parser->cntxV[(++size)++] = parser->cntxV.back(); }
             parser->cntxV.resize(size);
             return stat; }
@@ -632,7 +633,7 @@ template <typename Data = bool> struct Interface
         :data(ifc.data) , text(text), length(length), name(name)
         {}; // mandatory constructor with user data to be called from library
     Interface(const char* text, size_t length,  const char* name)
-        :data(0), text(text), length(length), name(name)
+        :data(), text(text), length(length), name(name)
         {}; //  mandatory default constructor to be called from library
     Interface(Data data, std::vector<Interface>& res, const char* name = "")
         :data(data), text(res.size()? res[0].text: ""),
@@ -640,9 +641,9 @@ template <typename Data = bool> struct Interface
             - res[0].text + res[res.size() - 1].length : 0), name(name)
         {}; // constructor to pass data from user's callback to library
     Interface(const Interface& front, const Interface& back, const char* name = "")
-        : data(0), text(front.text), length(back.text - front.text + back.length), name(name)
+        : data(), text(front.text), length(back.text - front.text + back.length), name(name)
         {}; // constructor to pass data from user's callback to library
-    Interface(): data(0), text(0), length(0), name(0)
+    Interface(): data(), text(0), length(0), name(0)
         {}; // default constructor
     static Interface ByPass(std::vector<Interface>& res) // simplest user callback example
         {   return res.size()? res[0]: Interface(); }   // just to pass data to upper level

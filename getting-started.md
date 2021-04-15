@@ -200,17 +200,17 @@ In some cases less optimal `MemRule()` can be used to remember unsuccessful pars
 
 ## Debugging of BNFLite Grammar
 
-Writing grammar by EDSL will be easier if the user has understanding the parser behavior. 
+Writing grammar by EDSL is easier if the user has some understanding the parser behavior. 
 If the `Analyze` call returns an error the user always should take into consideration 
 both possibilities:
  - syntax errors in the input text (incorrect text)
  - grammar bugs (incorrect rules).
-The BNFLite provides several mechanisms to minimize debugging and testing overhead     
+The BNFLite provides several mechanisms to minimize debugging and testing overheads     
 
 ### Return Codes
 
 Return code from `Analyze` call can contain flags related to the gramma. 
- - `eBadRule`, `eBadLexem` - means the rules tree is not properly built 
+ - `eBadRule`, `eBadLexem` - the rule tree is not properly built 
  - `eEof` - "unexpected end of file" for most cases it is OK, just not enough text for applied rules
  - `eSyntax` - syntax error (controlled by the user)
  - `eOver` - too much data for cycle rules  
@@ -220,13 +220,14 @@ Return code from `Analyze` call can contain flags related to the gramma.
 
 ### Names and Breakpoints
 
-The user can assign the name to the `Rule` by `setName()`. 
+The user can assign the internal name to the `Rule` object by `setName()`. 
 It can help to track recursive descent parser looking `Rule::_parse` function calls. 
 Debugger stack (history of function calls) can inform which Rule was applied and when. 
 The user just needs to watch the `this->name` variable. It is not as difficult as it seems at first glance.
 
-### Grammar Subsets
+### Debugging of Complex Gramma 
 
+The user can divide complex gramma for several parts to develop them independently.
 `Analyze` function can be applied as unit test to any `Rule` representing subset of the gramma.
 
 ### Tracing
@@ -285,7 +286,7 @@ Note:
  - The order `num_ + num_00 + num_0` is important because `num_0` is subset of `num_00`
 
 	
-### Syntax Error
+### Try for Syntax Errors
 
 Below is the extended example for hex-decimal digit: 
 
@@ -296,7 +297,8 @@ Below is the extended example for hex-decimal digit:
 Let's assume the parser tries to apply the `HexDigits` rule to `0.0` and `OxZ` text elements.
 Both elements are not fit, but `0.0` can be appropriate for some another rule of gramma.
 But the `OxZ` is syntax error. We definitely know there is no rule for it.
-So we should use `Try()` special statement to catch `eSyntax` error at the end.
+So we should use `Try()` special statement to force the parser to chech the production is ok. 
+Otherwise, parser stops with`eSyntax` error at the end.
 In other words, the `Try()` forces `eSyntax` error if input text is not applied after `Try()` special rule.
 
 Lexem HexDigits  = Token("0") + Token("Xx") + Try() + Series(1, hex_digit);
