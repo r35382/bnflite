@@ -137,16 +137,16 @@ protected:              friend class _Base; friend class ExtParser;
         {   static int cnt = 0;
             if (name) { t->name = name; }
             else { t->name = typeid(*t).name() + _NAME_OFF;
-                   for( int i = ++cnt; i != 0; i /= 10) {
+                   for (int i = ++cnt; i != 0; i /= 10) {
                        t->name += '0' + i - (i/10)*10; } } }
     void _clone(const _Tie* lnk)
         {   usage.swap(lnk->usage);
             for (std::list<const _Tie*>::const_iterator usg = usage.begin(); usg != usage.end(); ++usg) {
-                for (unsigned i = 0; i < (*usg)->use.size(); i++) {
+                for (size_t i = 0; i < (*usg)->use.size(); i++) {
                    if ((*usg)->use[i] == lnk) {
                         (*usg)->use[i] = this; } } }
             use.swap(lnk->use);
-            for (unsigned i = 0; i < use.size(); i++) {
+            for (size_t i = 0; i < use.size(); i++) {
                 if (!use[i]) continue;
                 std::list<const _Tie*>::iterator itr =
                     std::find(use[i]->usage.begin(), use[i]->usage.end(), lnk);
@@ -160,12 +160,15 @@ protected:              friend class _Base; friend class ExtParser;
     _Tie(const _Tie& link) : inner(link.inner), name(link.name)
         {   _clone(&link); }
     virtual ~_Tie()
-        {   for (unsigned int i = 0; i < use.size(); i++) {
-                if (use[i]) {
-                    use[i]->usage.remove(this);
-                    if ( use[i]->inner && use[i]->usage.size() == 0) {
-                        delete use[i]; }
-                    use[i] = 0; } } }
+        {   for (size_t i = 0; i < use.size(); i++) {
+                const _Tie* lnk = use[i];
+                if (lnk) {
+                    lnk->usage.remove(this);
+                    for (size_t j = 0; j < use.size(); j++) {
+                        if ( use[j] == lnk) {
+                            use[j] = 0; } }
+                    if (lnk->inner && lnk->usage.size() == 0) {
+                        delete lnk; } } } }
     static int call_1st(const _Tie* lnk, _Base* parser)
         {   return lnk->_parse(parser); }
     void _clue(const _Tie& link)
@@ -278,13 +281,14 @@ public:
         {};
     virtual ~Token()
         {   _safe_delete(this); }
-    void Add(int fst, int lst = 0)  // add characters in range fst...lst;
+    void Add(int fst, int lst = 0, const char *sample = "")  // add characters in range fst...lst exept mentioned in sample;
         {   switch (lst) { // lst == 0|1: add single | upper&lower case character(s)
             case 1: if (fst >= 'A' && fst <= 'Z') match[fst - 'A' + 'a'] = 1;
                     else if (fst >= 'a' && fst <= 'z') match[fst - 'a' + 'A'] = 1;
             case 0: match[(unsigned char)fst] = 1; break;
             default: for (int i = fst; i <= lst; i++) {
-                        match[(unsigned char)i] = 1; } } }
+                        match[(unsigned char)i] = 1; }
+                     Remove(sample); } }
     void Add(const char *sample)
         {   while (*sample) {
                 match[(unsigned char)*sample++] = 1; } }
