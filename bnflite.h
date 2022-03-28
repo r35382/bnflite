@@ -92,10 +92,9 @@ protected:  friend class Token; friend class Lexem; friend class Rule;
         {   return std::make_pair((void*)0, 0); }
     virtual void _post_call(std::pair<void*, int> up)
         {};
-    virtual void _do_call(std::pair<void*, int> up,
-            void* callback, const char* begin, const char* end,  const char* name)
+    virtual void _do_call(std::pair<void*, int> up, void* callback, size_t org, const char* name)
         {};
-    virtual void _stub_call(const char* begin, const char* end,  const char* name)
+    virtual void _stub_call(size_t org, const char* name)
         {};
 public:
     int _analyze(_Tie& root, const char* text, size_t*);
@@ -263,8 +262,8 @@ class Token: public _Tie
                 cc = parser->zero_parse(cc);
             if (match[*((unsigned char*)cc)]) {
                 if (parser->level) {
-                    parser->_stub_call(cc, cc + 1, name.c_str());
-                    parser->cntxV.push_back(cc); }
+                    parser->cntxV.push_back(cc);
+                    parser->_stub_call(parser->cntxV.size() - 1, name.c_str()); }
                 parser->cntxV.push_back(++cc);
                 return  *cc ? eOk : eOk|eEof; }
             return *cc ? eNone : eEof; }
@@ -340,11 +339,10 @@ protected: friend class _Tie; friend class Lexem;
     explicit _And(const _And* rl) :_Tie(rl)
         {};
     virtual int _parse(_Base* parser) const throw()
-        {   int stat = 0; int save = 0; int size = parser->cntxV.size();
-            const char* org = parser->cntxV.back();
+        {   int stat = 0; size_t save = 0; size_t size = parser->cntxV.size();
             for (unsigned i = 0; i < use.size(); i++, stat &= ~(eSkip|eOk)) {
                 stat |= use[i]->_parse(parser);
-                if (!(stat & eOk) || (stat & eError) || ((stat & eEof) && !(parser->cntxV.back() - org))) {
+                if (!(stat & eOk) || (stat & eError) || ((stat & eEof) && !(parser->cntxV.back() - parser->cntxV[size - 1]))) {
                     if (parser->level && (stat & eTry) && !(stat & eError) && !save) {
                         stat |= parser->catch_error(parser->cntxV.back()); }
                     parser->_erase(size);
@@ -384,20 +382,19 @@ class _Or: public _Tie
 {
 protected: friend class _Tie;
     _Or(const _Tie& b1, const _Tie& b2):_Tie("")
-        {   (name = b1.name).append("|") += b2.name; _clue(b1); _clue(b2);}
+        {   (name = b1.name).append("|") += b2.name; _clue(b1); _clue(b2); }
     explicit _Or(const _Or* rl) :_Tie(rl)
         {};
     virtual int _parse(_Base* parser) const throw()
         {   int stat = 0; int tstat = 0; int max = 0; int tmp = -1;
-            const char* org = parser->cntxV.back();
-            unsigned int msize; unsigned int size = parser->cntxV.size();
+            size_t size = parser->cntxV.size();
             for (unsigned i = 0; i < use.size(); i++, stat &= ~(eOk|eRet|eEof|eError)) {
-                msize = parser->cntxV.size();
+                size_t msize = parser->cntxV.size();
                 if (msize > size) {
-                    parser->cntxV.push_back(org); }
+                    parser->cntxV.push_back(parser->cntxV[size - 1]); }
                 stat |= use[i]->_parse(parser);
                 if (stat & (eOk|eError)) {
-                    tmp = parser->cntxV.back() - org;
+                    tmp = parser->cntxV.back() - parser->cntxV[size - 1];
                     if ((tmp > max) || (tmp > 0 && (stat & (eRet|e1st))) || (tmp >= 0 && (stat & eError))) {
                         max = tmp;
                         tstat = stat;
@@ -448,14 +445,13 @@ protected: friend class _Tie;
                 return eError|eBadLexem;
             if (!parser->level || dynamic_cast<const Action*>(use[0]))
                 return use[0]->_parse(parser);
-            int size = parser->cntxV.size();
-            const char* org = parser->zero_parse(parser->cntxV.back());
-            parser->cntxV.push_back(org);
+            size_t size = parser->cntxV.size();
+            parser->cntxV.push_back(parser->zero_parse(parser->cntxV.back()));
             parser->level--;
-            int  stat = use[0]->_parse(parser);
+            int stat = use[0]->_parse(parser);
             parser->level++;
             if ((stat & eOk) && parser->cntxV.size() - size > 1) {
-                parser->_stub_call(org, parser->cntxV.back(), name.c_str());
+                parser->_stub_call(size - 1, name.c_str());
                 if (parser->cntxV.back() > parser->pstop) parser->pstop = parser->cntxV.back();
                 parser->cntxV[(++size)++] = parser->cntxV.back(); }
             parser->cntxV.resize(size);
@@ -497,11 +493,11 @@ protected:  friend class _Tie; friend class _And;
                 return eError|eBadRule;
             if (dynamic_cast<const Action*>(use[0])) {
                 return use[0]->_parse(parser); }
-            int size = parser->cntxV.size();
+            size_t size = parser->cntxV.size();
             std::pair<void*, int> up = parser->_pre_call(callback);
             int stat = use[0]->_parse(parser);
             if ((stat & eOk) && parser->cntxV.size() - size > 1) {
-                parser->_do_call(up, callback, parser->cntxV[size], parser->cntxV.back(), name.c_str());
+                parser->_do_call(up, callback, size, name.c_str());
                 if (parser->cntxV.back() > parser->pstop) parser->pstop = parser->cntxV.back(); 
                 parser->cntxV[(++size)++] = parser->cntxV.back(); }
             parser->cntxV.resize(size);
@@ -594,25 +590,24 @@ protected:
                 delete cntxU; }
             cntxU = (std::vector<U>*)up.first;
             off = up.second; }
-    virtual void _do_call(std::pair<void*, int> up,
-            void* callback, const char* begin, const char* end, const char* name)
+    virtual void _do_call(std::pair<void*, int> up, void* callback, size_t org, const char* name)
         {   if (callback) {
                 if (up.first) {
                     ((std::vector<U>*)up.first)->push_back(U(reinterpret_cast<
-                        U(*)(std::vector<U>&)>(callback)(*cntxU), begin, end - begin, name));
+                        U(*)(std::vector<U>&)>(callback)(*cntxU), cntxV[org], cntxV.back() - cntxV[org], name));
                 } else { reinterpret_cast<U(*)(std::vector<U>&)>(callback)(*cntxU); }
             } else if (up.first) {
-                    ((std::vector<U>*)up.first)->push_back(U(begin, end - begin, name)); } }
-    virtual void _stub_call( const char* begin, const char* end, const char* name)
+                    ((std::vector<U>*)up.first)->push_back(U(cntxV[org], cntxV.back() - cntxV[org], name)); } }
+    virtual void _stub_call(size_t org, const char* name)
         {   if (cntxU) {
-                cntxU->push_back(U(begin, end - begin, name)); } }
+                cntxU->push_back(U(cntxV[org], cntxV.back() - cntxV[org], name)); } }
 public:
     _Parser(const char* (*f)(const char*), std::vector<U>* v) :_Base(f), cntxU(v), off(0)
         {};
     virtual ~_Parser()
         {};
     int _get_result(U& u)
-        {   if (cntxU && cntxU->size()) {u.data = cntxU->front().data; return 0;}
+        {   if (cntxU && cntxU->size()) { u.data = cntxU->front().data; return 0; }
             else return eNull; }
     template <class W> friend Rule& Bind(Rule& rule, W (*callback)(std::vector<W>&));
 };
