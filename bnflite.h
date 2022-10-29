@@ -66,10 +66,6 @@ enum Status {   eNone = 0, eOk = 1,
 
 class _Tie; class _And; class _Or; class _Cycle;
 
-#if !defined(BNFLITE_CATCH_ERROR) // to redefine base function to catch syntax error after Try()
-#define BNFLITE_CATCH_ERROR _Base::base_error
-#endif
-
 /* context class to support the first kind of callback */
 class _Base // base parser class
 {
@@ -85,7 +81,8 @@ protected:  friend class Token; friend class Lexem; friend class Rule;
             else if (++cnt > maxEmptyStack) return  eOver|eError;
             return 0; }
     const char* (*zero_parse)(const char*);
-    int (*catch_error)(const char* ptr);
+    int catch_error(const char* ptr) // attempt to catch general syntax error
+        { return eSyntax|eError; }
     virtual void _erase(int low, int up = 0)
         {   cntxV.erase(cntxV.begin() + low,  up? cntxV.begin() + up : cntxV.end() ); }
     virtual std::pair<void*, int> _pre_call(void* callback)
@@ -98,8 +95,7 @@ protected:  friend class Token; friend class Lexem; friend class Rule;
         {};
 public:
     int _analyze(_Tie& root, const char* text, size_t*);
-    _Base(const char* (*pre)(const char*)) : level(1), pstop(0),
-            zero_parse(pre?pre:base_parser), catch_error(BNFLITE_CATCH_ERROR)
+    _Base(const char* (*pre)(const char*)) : level(1), pstop(0), zero_parse(pre?pre:base_parser)
         {};
     virtual ~_Base()
         {};
@@ -109,9 +105,6 @@ public:
                 if (cc != ' ' && cc !='\t' && cc != '\n' && cc != '\r') {
                     break; } }
             return ptr; }
-    // attempt to catch general syntax error
-    static int base_error(const char* ptr)
-        { return eSyntax|eError; }
 };
 
 #if !defined(_MSC_VER)
@@ -260,13 +253,14 @@ class Token: public _Tie
         {   const char* cc = parser->cntxV.back();
             if (parser->level)
                 cc = parser->zero_parse(cc);
-            if (match[*((unsigned char*)cc)]) {
+            char c = *((unsigned char*)cc);
+            if (match.test(c)) {
                 if (parser->level) {
                     parser->cntxV.push_back(cc);
                     parser->_stub_call(parser->cntxV.size() - 1, name.c_str()); }
                 parser->cntxV.push_back(++cc);
-                return  *cc ? eOk : eOk|eEof; }
-            return *cc ? eNone : eEof; }
+                return  c ? eOk : eOk|eEof; }
+            return c ? eNone : eEof; }
 public:
     Token(const char c) :_Tie(std::string(1, c))
         {   Add(c, 0); };    // create single char token
@@ -284,27 +278,25 @@ public:
         {   switch (lst) { // lst == 0|1: add single | upper&lower case character(s)
             case 1: if (fst >= 'A' && fst <= 'Z') match[fst - 'A' + 'a'] = 1;
                     else if (fst >= 'a' && fst <= 'z') match[fst - 'a' + 'A'] = 1;
-            case 0: match[(unsigned char)fst] = 1; break;
+            case 0: match.set((unsigned char)fst); break;
             default: for (int i = fst; i <= lst; i++) {
-                        match[(unsigned char)i] = 1; }
+                        match.set((unsigned char)i); }
                      Remove(sample); } }
     void Add(const char *sample)
         {   while (*sample) {
-                match[(unsigned char)*sample++] = 1; } }
+                match.set((unsigned char)*sample++); } }
     void Remove(int fst, int lst = 0)
         {   for (int i = fst; i <= (lst?lst:fst); i++) {
-                match[(unsigned char)i] = 0; } }
+                match.reset((unsigned char)i); } }
     void Remove(const char *sample)
         {   while (*sample) {
-                match[(unsigned char)*sample++] = 0; } }
+                match.reset((unsigned char)*sample++); } }
     int GetSymbol(int next = 0)
         {   for (unsigned i = next; i < match.size(); i++) {
                 if (match.test(i)) return i; }
             return 0; }
     Token& Invert() // inverted tocken, to build construction to not match
-        {   for (int i = 1; i < 255; i++) {
-                match[(unsigned char)i] = !match[(unsigned char)i]; }
-            return *this; }
+        {   match.flip(); return *this; }
 
 };
 #if __cplusplus > 199711L
@@ -342,7 +334,7 @@ protected: friend class _Tie; friend class Lexem;
         {   int stat = 0; size_t save = 0; size_t size = parser->cntxV.size();
             for (unsigned i = 0; i < use.size(); i++, stat &= ~(eSkip|eOk)) {
                 stat |= use[i]->_parse(parser);
-                if (!(stat & eOk) || (stat & eError) || ((stat & eEof) && !(parser->cntxV.back() - parser->cntxV[size - 1]))) {
+                if (!(stat & eOk) || (stat & eError) || ((stat & eEof) && (parser->cntxV.back() == parser->cntxV[size - 1]))) {
                     if (parser->level && (stat & eTry) && !(stat & eError) && !save) {
                         stat |= parser->catch_error(parser->cntxV.back()); }
                     parser->_erase(size);

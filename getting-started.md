@@ -277,10 +277,10 @@ Let's assume the numbers with leading of several `0` should be treated as error.
     { printf("Error with leading zeros: %.*s\n", len, lexem); return false}
         /* … */
     Lexem num_00 = Series(2, "0") + digit1_9 + *DIGIT; // special rule for numbers with two or more leading zeros
-    Rule number = num_ + DebugNumber | num_00 + Error00Number + Syntax() | num_0 + Check0Number;
+    Rule number = num_ + DebugNumber | num_00 + Error00Number + Catch() | num_0 + Check0Number;
 
 The function should return `false` because text is not applied. 
-The `Syntax()` special library statement forces the parser to stop and return `eSyntax` error flag.
+The `Catch()` special library statement forces the parser to stop and return `eSyntax` error flag.
 
 Note:	
  - The order `num_ + num_00 + num_0` is important because `num_0` is subset of `num_00`
