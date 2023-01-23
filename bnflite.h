@@ -31,6 +31,7 @@
 #include <list>
 #include <vector>
 #include <bitset>
+#include <map>
 #include <algorithm>
 #include <typeinfo>
 
@@ -245,8 +246,43 @@ class Token: public _Tie
 {
     Token& operator=(const _Tie&);
     explicit Token(const _Tie&);
-    std::bitset<bnf::maxCharNum> match;
+public:
+    class interval_set : protected std::map<wchar_t,bool>
+    {
+    public:
+	    interval_set()
+	        {   insert(std::make_pair(0, false)); insert(std::make_pair(WCHAR_MAX, false)); }
+        bool test(wchar_t key) const
+            {   return (--upper_bound(key))->second; }
+        void reset(wchar_t key)
+            {   set(key, 0, false); }
+        void set(wchar_t key, size_t rep = 0, bool val = true)
+            {   wchar_t key_end = key + rep + 1;
+                if (key == 0 || key_end == WCHAR_MAX) return;
+                std::map<wchar_t,bool>::iterator right_begin = lower_bound(key);
+                std::map<wchar_t,bool>::iterator left_begin = right_begin; --left_begin;
+                std::map<wchar_t,bool>::iterator right_end = upper_bound(key_end);
+                std::map<wchar_t,bool>::iterator left_end = right_end; --left_end;
+                if (left_end->second == val)
+                    if (left_end->first >= key_end && right_begin == left_end) erase(right_begin);
+                    else  erase(right_begin, right_end);
+                else {
+                    std::map<wchar_t,bool>::iterator itr = insert(std::make_pair(key_end, left_end->second)).first;
+                    if(right_begin->first < itr->first)
+                            erase(right_begin, itr);  }
+                if (left_begin->second != val)
+                    insert(std::make_pair(key, val));  }
+        void flip()
+            {   for (std::map<wchar_t, bool>::iterator itr = begin(); itr != end(); ++itr)
+                       itr->second = !itr->second;  }
+    };
+
  protected: friend class _Tie;
+#if defined(BNFLITE_WIDE)
+    interval_set match;
+#else
+    std::bitset<bnf::maxCharNum> match;
+#endif
     explicit Token(const Token* tkn) :_Tie(tkn), match(tkn->match)
         {};
     virtual int _parse(_Base* parser) const throw()
@@ -276,8 +312,8 @@ public:
         {   _safe_delete(this); }
     void Add(int fst, int lst = 0, const char *sample = "")  // add characters in range fst...lst exept mentioned in sample;
         {   switch (lst) { // lst == 0|1: add single | upper&lower case character(s)
-            case 1: if (fst >= 'A' && fst <= 'Z') match[fst - 'A' + 'a'] = 1;
-                    else if (fst >= 'a' && fst <= 'z') match[fst - 'a' + 'A'] = 1;
+            case 1: if (fst >= 'A' && fst <= 'Z') match.set(fst - 'A' + 'a');
+                    else if (fst >= 'a' && fst <= 'z') match.set(fst - 'a' + 'A');
             case 0: match.set((unsigned char)fst); break;
             default: for (int i = fst; i <= lst; i++) {
                         match.set((unsigned char)i); }
@@ -291,11 +327,11 @@ public:
     void Remove(const char *sample)
         {   while (*sample) {
                 match.reset((unsigned char)*sample++); } }
-    int GetSymbol(int next = 0)
-        {   for (unsigned i = next; i < match.size(); i++) {
+    int GetSymbol(int next = 1) // get first short symbol
+        {   for (unsigned int i = next; i < maxCharNum; i++) {
                 if (match.test(i)) return i; }
             return 0; }
-    Token& Invert() // inverted tocken, to build construction to not match
+    Token& Invert() // invert token to build construction to not match
         {   match.flip(); return *this; }
 
 };
